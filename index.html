@@ -6,7 +6,7 @@
     <title>PinPoint — BITS Hyderabad</title>
     <script src="src/theme-init.js"></script>
     <link rel="stylesheet" href="public/vendor/maplibre-gl.css" />
-    <link rel="stylesheet" href="src/styles/app.css?features=3" />
+    <link rel="stylesheet" href="src/styles/app.css?mobile=4" />
     <link rel="stylesheet" href="src/styles/themes.css?features=3" />
   </head>
   <body>
@@ -24,6 +24,15 @@
     <main>
       <section class="sidebar">
         <div class="hero">
+          <button
+            id="browseEvents"
+            class="mobile-event-handle"
+            type="button"
+            aria-label="Browse campus events"
+            aria-controls="events"
+          >
+            <span aria-hidden="true">↑</span>
+          </button>
           <div class="eyebrow">
             <span>Campus events, all in one place</span
             ><span class="hello-dot" aria-hidden="true">✦</span>
@@ -563,6 +572,6 @@
     </dialog>
     <div id="toast" role="status"></div>
     <script src="public/vendor/maplibre-gl.js"></script>
-    <script type="module" src="src/app.js?features=3"></script>
+    <script type="module" src="src/app.js?mobile=4"></script>
   </body>
 </html>

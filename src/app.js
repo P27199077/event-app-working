@@ -21,6 +21,16 @@ import { createCampusMap, fit } from "./map/map.js?theme=11";
 import { CAMPUS_STREET_STYLE } from "./map/street-style.js";
 const $ = (selector) => document.querySelector(selector);
 initializeThemeToggle();
+const pageHeader = document.querySelector("body > header");
+const sizeHeader = () =>
+  document.documentElement.style.setProperty(
+    "--header-height",
+    `${pageHeader.getBoundingClientRect().height}px`,
+  );
+sizeHeader();
+new ResizeObserver(sizeHeader).observe(pageHeader);
+$("#browseEvents").onclick = () =>
+  $(".search").scrollIntoView({ behavior: "smooth", block: "start" });
 let storage;
 try {
   storage = localStorage;
