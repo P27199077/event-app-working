@@ -1,43 +1,52 @@
-// Focus points guide private placement; they are not confirmed venue coordinates.
+// Food-place centres confirmed by the campus owner on 22 October 2026.
+// Basemap rectangles are schematic footprints, not surveyed building outlines.
 export const FOOD_SPOTS = [
   {
     id: "food-hotspot",
     label: "Hotspot",
-    focus: [78.5755487, 17.5425562],
+    coords: [78.57555674662808, 17.542537018986167],
+    accuracy: "confirmed",
   },
   {
     id: "food-amul",
     label: "Amul",
-    focus: [78.5754287, 17.5426159],
+    coords: [78.57545283988412, 17.5426146212657],
+    accuracy: "confirmed",
   },
   {
     id: "food-vijay-vahini",
     label: "Vijay Vahini",
-    focus: [78.5753087, 17.5426756],
+    coords: [78.57530869999931, 17.542697338465473],
+    accuracy: "confirmed",
   },
   {
     id: "food-dominos",
     label: "Domino’s",
-    focus: [78.5752162, 17.5453109],
+    coords: [78.5756721755306, 17.54531217871569],
+    accuracy: "confirmed",
   },
   {
     id: "food-wich-please",
     label: "Wich Please",
-    focus: [78.5752021667, 17.54477825],
+    coords: [78.5752128955346, 17.544513555068477],
+    accuracy: "confirmed",
   },
   {
     id: "food-frankie-stand",
     label: "Frankie stand",
-    focus: [78.5752021667, 17.54477825],
+    coords: [78.57520216669877, 17.54441637229243],
+    accuracy: "confirmed",
   },
   {
     id: "food-protein-isle",
     label: "Protein Isle",
-    focus: [78.5752021667, 17.54477825],
+    coords: [78.57510828938291, 17.544260368252054],
+    accuracy: "confirmed",
   },
   {
     id: "food-c3",
     label: "C3",
-    focus: [78.5752021667, 17.54477825],
+    coords: [78.57483236502964, 17.544161253353593],
+    accuracy: "confirmed",
   },
 ];
