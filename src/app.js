@@ -16,6 +16,7 @@ import {
   newTrackingToken,
 } from "./request-tracking.js?tracking=2";
 import { createEventManager } from "./event-management.js";
+import { createScheduleDrafts } from "./schedule-drafts.js";
 import { createReviewQueue } from "./review-queue.js?requests=2";
 import { SHARED_EVENTS_ENABLED, PUBLIC_REQUESTS_ENABLED } from "./config.js";
 import { visibleAtTime } from "./data/event-visibility.js";
@@ -54,6 +55,7 @@ if (SHARED_EVENTS_ENABLED) {
 }
 let authUi, venueSetup, reviewQueue, eventManager, requestId, browserId;
 let editingEvent = null,
+  scheduleDraft = null,
   requestToken;
 try {
   browserId = storage?.getItem("pinpoint-request-browser");
@@ -85,6 +87,11 @@ const requestTracker = createRequestTracker({
   getBackend: () => backend,
   storage,
   notify: toast,
+});
+const scheduleDrafts = createScheduleDrafts({
+  accountIdentity: () => (organizer && currentUser ? currentUser.id : null),
+  storage,
+  onOpen: openScheduleDraft,
 });
 
 let filter = "All",
@@ -345,15 +352,19 @@ function localInput(d) {
 function updatePostCopy() {
   $("#postDialog h2").textContent = editingEvent
     ? "Edit event."
-    : "Add a campus event.";
+    : scheduleDraft
+      ? "Review & place event."
+      : "Add a campus event.";
   $("#postIntro").textContent = editingEvent
     ? "Update the details or move the pin. Saving keeps this event and its existing interest selections."
     : "Add the details, choose a location, and help students discover your event.";
   $('#postForm button[type="submit"]').textContent = editingEvent
     ? "Save changes →"
-    : organizer
-      ? "Publish event →"
-      : "Submit for approval →";
+    : scheduleDraft
+      ? "Approve & publish event →"
+      : organizer
+        ? "Publish event →"
+        : "Submit for approval →";
   $("#postingNote").textContent = editingEvent
     ? editingEvent.status === "cancelled"
       ? "This event is cancelled. Saving edits does not restore it to the map."
@@ -362,6 +373,50 @@ function updatePostCopy() {
       ? "You are signed in as a reviewer. Your own events can be published directly."
       : "Requests are reviewed before appearing on the map. No student login required.";
 }
+function openScheduleDraft(event, saved, accountId) {
+  if (!organizer || currentUser?.id !== accountId) return;
+  venueSetup?.cancel();
+  stopPicking();
+  resetDraft();
+  scheduleDraft = { ...event, accountId };
+  const form = $("#postForm"),
+    values = saved || event;
+  for (const name of [
+    "title",
+    "category",
+    "room",
+    "host",
+    "description",
+    "link",
+    "start",
+    "end",
+  ])
+    form.elements[name].value = values[name] || "";
+  form.elements.area.value = "Custom pin";
+  if (saved?.coords && inside(saved.coords)) draftPoint = [...saved.coords];
+  $("#locationStatus").textContent = draftPoint
+    ? "Your saved draft pin is selected. Check it before publishing."
+    : "Choose a saved venue or place an exact pin. No location has been invented.";
+  $("#scheduleSourceNotes").hidden = false;
+  $("#scheduleSourceNotes").innerHTML =
+    `<p><b>Event list:</b> ${esc(event.catalog_date)} · ${esc(event.catalog_time)}</p>
+    ${event.bookings.map((b) => `<p><b>Room booking:</b> ${esc(b.room)} · ${esc(b.start.replace("T", " "))} – ${esc(b.end.replace("T", " "))} IST</p>`).join("")}
+    ${event.issues.map((issue) => `<p class="draft-issue">${esc(issue)}</p>`).join("")}
+    <p class="footnote">Confirm conflicting hours below. They are left blank until you decide.</p>`;
+  $("#scheduleConfirmLabel").hidden = false;
+  $("#scheduleConfirmed").required = true;
+  updatePostCopy();
+  $("#postDialog").showModal();
+}
+function rememberScheduleDraft() {
+  if (!scheduleDraft) return;
+  const fields = Object.fromEntries(new FormData($("#postForm")));
+  fields.coords = draftPoint || savedVenue(fields.venue)?.coords || null;
+  scheduleDrafts.remember(scheduleDraft.id, scheduleDraft.accountId, fields);
+}
+$("#postForm").addEventListener("input", rememberScheduleDraft);
+$("#postForm").addEventListener("change", rememberScheduleDraft);
+$("#postDialog").addEventListener("close", rememberScheduleDraft);
 function openEventEditor(event) {
   if (!owner || !currentUser || !event) return;
   venueSetup?.cancel();
@@ -391,6 +446,11 @@ function openEventEditor(event) {
 }
 function resetDraft() {
   editingEvent = null;
+  scheduleDraft = null;
+  $("#scheduleSourceNotes").hidden = true;
+  $("#scheduleSourceNotes").innerHTML = "";
+  $("#scheduleConfirmLabel").hidden = true;
+  $("#scheduleConfirmed").required = false;
   updatePostCopy();
   requestId = crypto.randomUUID();
   requestToken = newTrackingToken();
@@ -478,6 +538,15 @@ $("#postForm").elements.area.onchange = (e) => {
 $("#postForm").onsubmit = async (e) => {
   e.preventDefault();
   if (posting || !canPost()) return;
+  if (
+    scheduleDraft &&
+    (!organizer || currentUser?.id !== scheduleDraft.accountId)
+  )
+    return;
+  if (scheduleDraft && !$("#scheduleConfirmed").checked) {
+    toast("Check the source details and confirm them before publishing.");
+    return;
+  }
   if (SHARED_EVENTS_ENABLED && !organizer && !PUBLIC_REQUESTS_ENABLED) {
     $("#submissionStatus").textContent =
       "Public requests are being set up. Please check back shortly.";
@@ -505,8 +574,14 @@ $("#postForm").onsubmit = async (e) => {
     );
     return;
   }
-  let coords = draftPoint || savedVenue(data.venue)?.coords || areas[data.area];
+  let coords =
+    draftPoint ||
+    savedVenue(data.venue)?.coords ||
+    (scheduleDraft ? null : areas[data.area]);
   if (!inside(coords)) {
+    if (scheduleDraft)
+      $("#submissionStatus").textContent =
+        "Choose a saved venue or pick an exact map point before publishing this draft.";
     toast("Pick a location inside the campus boundary first.");
     return;
   }
@@ -546,9 +621,15 @@ $("#postForm").onsubmit = async (e) => {
         toast("Event updated.");
         eventManager?.open();
         return;
-      } else if (organizer)
+      } else if (organizer) {
+        const imported = scheduleDraft && {
+          id: scheduleDraft.id,
+          account: scheduleDraft.accountId,
+        };
         item = await backend.createEvent(item, currentUser.id);
-      else {
+        if (imported)
+          scheduleDrafts.published(imported.id, imported.account, item.id);
+      } else {
         const tracking = {
           id: requestId,
           token: requestToken,
@@ -640,6 +721,7 @@ map = createCampusMap({
       return;
     }
     draftPoint = point;
+    rememberScheduleDraft();
     stopPicking();
     if (!savedVenue($("#postForm").elements.venue.value))
       $("#postForm").elements.area.value = "Custom pin";
@@ -727,10 +809,15 @@ async function updateAccount(session) {
   currentUser = session?.user || null;
   organizer = false;
   owner = false;
+  scheduleDrafts.clear();
+  $("#scheduleDrafts").hidden = true;
   eventManager?.clear();
   reporting.clear();
   $("#reviewReports").hidden = true;
-  if (editingEvent && editingEvent.accountId !== currentUser?.id) {
+  if (
+    (editingEvent && editingEvent.accountId !== currentUser?.id) ||
+    scheduleDraft
+  ) {
     $("#postDialog").close();
     stopPicking();
     resetDraft();
@@ -771,6 +858,7 @@ async function updateAccount(session) {
       : "Signed in · Event requests need reviewer approval"
     : "";
   $("#reviewEvents").hidden = !organizer || !PUBLIC_REQUESTS_ENABLED;
+  $("#scheduleDrafts").hidden = !organizer;
   $("#venueSetup").hidden = !organizer;
   $("#setPassword").hidden = !organizer;
   $("#manageEvents").hidden = !owner;
@@ -825,6 +913,7 @@ async function initializeSharedEvents() {
 }
 $("#reviewReports").onclick = () => reporting.openQueue();
 $("#manageEvents").onclick = () => eventManager?.open();
+$("#scheduleDrafts").onclick = () => scheduleDrafts.open();
 $("#reviewEvents").onclick = () => reviewQueue?.open();
 $("#refreshReviews").onclick = () => reviewQueue?.refresh();
 $("#organizerLogin").onclick = async () => {

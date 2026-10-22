@@ -6,7 +6,7 @@
     <title>PinPoint — BITS Hyderabad</title>
     <script src="src/theme-init.js"></script>
     <link rel="stylesheet" href="public/vendor/maplibre-gl.css" />
-    <link rel="stylesheet" href="src/styles/app.css?time=6" />
+    <link rel="stylesheet" href="src/styles/app.css?drafts=1" />
     <link rel="stylesheet" href="src/styles/themes.css?features=3" />
   </head>
   <body>
@@ -82,6 +82,9 @@
           <button id="myRequests" class="text-button">My event requests</button>
           <button id="manageEvents" class="text-button" hidden>
             Manage all events
+          </button>
+          <button id="scheduleDrafts" class="text-button" hidden>
+            ATMOS Day 1 drafts
           </button>
           <button id="setPassword" class="text-button" hidden>
             Set / change password
@@ -274,6 +277,7 @@
           Add the details, choose a location, and help students discover your
           event.
         </p>
+        <section id="scheduleSourceNotes" hidden></section>
         <label
           >Event title<input
             name="title"
@@ -357,8 +361,37 @@
             autocomplete="off"
         /></label>
         <p id="submissionStatus" role="status"></p>
+        <label id="scheduleConfirmLabel" hidden>
+          <input type="checkbox" id="scheduleConfirmed" />
+          I checked the date, start/end times, venue and source conflicts.
+        </label>
         <button class="primary" type="submit">Submit for approval →</button>
       </form>
+    </dialog>
+    <dialog id="scheduleDraftDialog">
+      <div class="dialog-heading">
+        <h2>ATMOS Day 1 drafts</h2>
+        <button type="button" class="close" aria-label="Close">×</button>
+      </div>
+      <p>
+        23 October 2026 · All times are IST. Import the draft file prepared from
+        your spreadsheets. Open an event, resolve any conflicting details,
+        choose its map pin, then publish.
+      </p>
+      <label
+        >Import event drafts (JSON)<input
+          id="scheduleDraftFile"
+          type="file"
+          accept=".json,application/json"
+      /></label>
+      <p class="footnote">
+        Draft edits and completion progress stay in this browser, separately for
+        each organizer account. Published events are shared across devices.
+        Check Manage all events before repeating a draft on another device.
+        Online-only activities need no physical pin.
+      </p>
+      <p id="scheduleDraftStatus" role="status"></p>
+      <div id="scheduleDraftList"></div>
     </dialog>
     <dialog id="venueSetupDialog">
       <div class="dialog-heading">
@@ -613,6 +646,6 @@
     </dialog>
     <div id="toast" role="status"></div>
     <script src="public/vendor/maplibre-gl.js"></script>
-    <script type="module" src="src/app.js?time=6"></script>
+    <script type="module" src="src/app.js?drafts=1"></script>
   </body>
 </html>

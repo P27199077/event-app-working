@@ -2019,6 +2019,29 @@ form input:read-only {
   display: none !important;
 }
 
+#scheduleConfirmLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 16px 0;
+  color: var(--text, inherit);
+}
+#scheduleConfirmed {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+}
+#scheduleSourceNotes {
+  border: 1px solid currentColor;
+  border-radius: 12px;
+  padding: 4px 14px;
+  margin: 16px 0;
+}
+.draft-issue {
+  font-weight: 600;
+}
+
 /* Private owner workspace. */
 #manageDialog {
   width: min(760px, calc(100vw - 28px));
