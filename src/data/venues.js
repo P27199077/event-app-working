@@ -1,0 +1,68 @@
+// Venue coordinates confirmed by the campus owner on 22 October 2026.
+export const SAVED_VENUES = [
+  {
+    id: "auditorium",
+    label: "Auditorium",
+    area: "Auditorium",
+    room: "Auditorium",
+    coords: [78.57043684664302, 17.545513458965132],
+    accuracy: "confirmed",
+  },
+  {
+    id: "ltc-lobby",
+    label: "LTC Lobby",
+    area: "Academic block",
+    room: "LTC Lobby",
+    coords: [78.571028150926, 17.544728080588143],
+    accuracy: "confirmed",
+  },
+  {
+    id: "f101",
+    label: "F101",
+    area: "Academic block",
+    room: "F101",
+    coords: [78.57089016070978, 17.54481558055123],
+    accuracy: "confirmed",
+  },
+  {
+    id: "f102",
+    label: "F102",
+    area: "Academic block",
+    room: "F102",
+    coords: [78.57075873246822, 17.54468515123982],
+    accuracy: "confirmed",
+  },
+  {
+    id: "f103",
+    label: "F103",
+    area: "Academic block",
+    room: "F103",
+    coords: [78.57062193980789, 17.544667249170587],
+    accuracy: "confirmed",
+  },
+  {
+    id: "f104",
+    label: "F104",
+    area: "Academic block",
+    room: "F104",
+    coords: [78.57119861474644, 17.544350126501314],
+    accuracy: "confirmed",
+  },
+  {
+    id: "f105",
+    label: "F105",
+    area: "Academic block",
+    room: "F105",
+    coords: [78.57117179265566, 17.544475441170647],
+    accuracy: "confirmed",
+  },
+  {
+    id: "f106",
+    label: "F106",
+    area: "Academic block",
+    room: "F106",
+    coords: [78.57119593253708, 17.544674921486006],
+    accuracy: "confirmed",
+  },
+];
+export const savedVenue = (id) => SAVED_VENUES.find((venue) => venue.id === id);

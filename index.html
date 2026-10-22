@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>PinPoint — BITS Hyderabad</title>
+    <script src="src/theme-init.js"></script>
+    <link rel="stylesheet" href="public/vendor/maplibre-gl.css" />
+    <link rel="stylesheet" href="src/styles/app.css?features=3" />
+    <link rel="stylesheet" href="src/styles/themes.css?features=3" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="./"
+        ><span class="logo" aria-hidden="true">✳</span><span>PinPoint</span></a
+      ><span class="campus"
+        >BITS Hyderabad <small>A little more connected</small></span
+      ><button id="themeToggle" type="button" aria-pressed="false">
+        ☾ Dark mode</button
+      ><button id="add" class="primary">
+        Submit an event <span aria-hidden="true">↗</span>
+      </button>
+    </header>
+    <main>
+      <section class="sidebar">
+        <div class="hero">
+          <div class="eyebrow">
+            <span>Campus events, all in one place</span
+            ><span class="hello-dot" aria-hidden="true">✦</span>
+          </div>
+          <div class="hero-title">
+            <h1>
+              Find your<br />
+              next<span class="cut-type"> event.</span>
+            </h1>
+            <div class="chrome-mark" aria-hidden="true"><span></span></div>
+          </div>
+          <p class="intro">
+            Discover talks, workshops, contests, and more.<br />Explore live
+            events and tap “I’m interested” to keep track.
+          </p>
+          <div class="hero-caption">
+            <span>See what’s on. Find an event. Be there.</span><span>↓</span>
+          </div>
+        </div>
+        <label class="search"
+          ><span>⌕</span
+          ><input
+            id="search"
+            placeholder="Search campus events"
+            aria-label="Search events"
+        /></label>
+        <nav class="views" aria-label="Event views">
+          <button class="active" data-view="Explore">Explore</button
+          ><button data-view="Mine">My events</button
+          ><button data-view="Interested">Interested</button>
+        </nav>
+        <div class="filters" id="filters">
+          <button class="active" data-filter="All">All</button
+          ><button data-filter="Now">Happening now</button
+          ><button data-filter="Speaker">Speaker</button
+          ><button data-filter="Workshop">Workshop</button
+          ><button data-filter="Contest">Contest</button
+          ><button data-filter="Fun">Fun</button
+          ><button data-filter="Other">Others</button
+          ><button data-filter="Empty classroom">Empty classrooms</button>
+        </div>
+        <div class="list-heading">
+          <h2>Happening now on campus</h2>
+          <span id="count"></span>
+        </div>
+        <div class="organizer-account">
+          <button id="myRequests" class="text-button">My event requests</button>
+          <button id="manageEvents" class="text-button" hidden>
+            Manage all events
+          </button>
+          <button id="setPassword" class="text-button" hidden>
+            Set / change password
+          </button>
+          <button id="venueSetup" class="text-button" hidden>
+            Set venue pins
+          </button>
+          <button id="reviewReports" class="text-button" hidden>
+            Review reports
+          </button>
+          <button id="reviewEvents" class="text-button" hidden>
+            Review event requests
+          </button>
+          <button id="organizerLogin" class="text-button" hidden>
+            Organizer sign in
+          </button>
+          <p id="accountStatus" role="status"></p>
+        </div>
+        <p id="connectionStatus" role="status"></p>
+        <div id="events"></div>
+        <p class="footnote" id="feedNote">
+          Sample events · RNT + Lover’s Lane campus view<br />Posts on this
+          prototype stay in this browser.
+        </p>
+        <button class="text-button" id="about">How this idea works ↗</button>
+      </section>
+      <section class="map" aria-label="Top-down campus event map">
+        <div
+          id="campusMap"
+          role="region"
+          aria-label="Zoomable campus map"
+        ></div>
+        <div class="map-heading">
+          <span
+            ><b><span class="crosshair">⌖</span> A little look around</b
+            ><small>BITS Hyderabad · North up</small></span
+          ><span class="live"><i></i> Demo preview</span>
+        </div>
+        <div class="map-tools">
+          <button id="fitCampus">⌖ Campus</button
+          ><button id="basemap" aria-pressed="false">Street</button
+          ><button id="pickLocation">＋ Drop a pin</button>
+        </div>
+        <div class="place-legend" aria-label="Building colour key">
+          <strong>Places</strong
+          ><span
+            ><i style="--place-colour: #e6a078" aria-hidden="true"></i
+            >Academics</span
+          ><span
+            ><i style="--place-colour: #bea4dc" aria-hidden="true"></i
+            >Hostels</span
+          ><span
+            ><i style="--place-colour: #edc260" aria-hidden="true"></i
+            >Food</span
+          ><span
+            ><i style="--place-colour: #93bbc9" aria-hidden="true"></i
+            >Shared</span
+          ><span
+            ><i style="--place-colour: #a6d3b2" aria-hidden="true"></i
+            >Sports</span
+          >
+        </div>
+        <div class="event-legend" aria-label="Event pin colour key">
+          <strong>Event pins</strong>
+          <div>
+            <span
+              ><i style="--event-colour: #d66049" aria-hidden="true"
+                ><svg viewBox="0 0 32 42" aria-hidden="true" focusable="false">
+                  <path
+                    d="M16 1C7.72 1 1 7.72 1 16c0 10.9 15 25 15 25s15-14.1 15-25C31 7.72 24.28 1 16 1Z"
+                  />
+                  <circle cx="16" cy="16" r="5" /></svg></i
+              >Speaker</span
+            ><span
+              ><i style="--event-colour: #3d7fba" aria-hidden="true"
+                ><svg viewBox="0 0 32 42" aria-hidden="true" focusable="false">
+                  <path
+                    d="M16 1C7.72 1 1 7.72 1 16c0 10.9 15 25 15 25s15-14.1 15-25C31 7.72 24.28 1 16 1Z"
+                  />
+                  <circle cx="16" cy="16" r="5" /></svg></i
+              >Workshop</span
+            ><span
+              ><i style="--event-colour: #8255ae" aria-hidden="true"
+                ><svg viewBox="0 0 32 42" aria-hidden="true" focusable="false">
+                  <path
+                    d="M16 1C7.72 1 1 7.72 1 16c0 10.9 15 25 15 25s15-14.1 15-25C31 7.72 24.28 1 16 1Z"
+                  />
+                  <circle cx="16" cy="16" r="5" /></svg></i
+              >Contest</span
+            ><span
+              ><i style="--event-colour: #cc518d" aria-hidden="true"
+                ><svg viewBox="0 0 32 42" aria-hidden="true" focusable="false">
+                  <path
+                    d="M16 1C7.72 1 1 7.72 1 16c0 10.9 15 25 15 25s15-14.1 15-25C31 7.72 24.28 1 16 1Z"
+                  />
+                  <circle cx="16" cy="16" r="5" /></svg></i
+              >Fun</span
+            ><span
+              ><i style="--event-colour: #677b73" aria-hidden="true"
+                ><svg viewBox="0 0 32 42" aria-hidden="true" focusable="false">
+                  <path
+                    d="M16 1C7.72 1 1 7.72 1 16c0 10.9 15 25 15 25s15-14.1 15-25C31 7.72 24.28 1 16 1Z"
+                  />
+                  <circle cx="16" cy="16" r="5" /></svg></i
+              >Others</span
+            ><button
+              type="button"
+              id="toggleClassrooms"
+              class="empty-classroom-key"
+              aria-pressed="false"
+              title="Show or hide empty classroom pins"
+            >
+              <i style="--event-colour: #219b86" aria-hidden="true"
+                ><svg viewBox="0 0 32 42" aria-hidden="true" focusable="false">
+                  <path
+                    d="M16 1C7.72 1 1 7.72 1 16c0 10.9 15 25 15 25s15-14.1 15-25C31 7.72 24.28 1 16 1Z"
+                  />
+                  <circle cx="16" cy="16" r="5" /></svg></i
+              >Empty classrooms<span
+                class="toggle-state"
+                aria-hidden="true"
+              ></span>
+            </button>
+          </div>
+        </div>
+        <div id="mapHint" role="status">
+          Drag to explore · Pinch or use + / − to zoom
+        </div>
+        <div id="mapStatus" role="status"></div>
+        <div id="venuePlacement" hidden>
+          <p id="venuePlacementLabel" role="status"></p>
+          <div>
+            <button id="saveVenuePoint" class="primary" disabled>
+              Save location</button
+            ><button id="cancelVenuePoint" class="text-button">Cancel</button>
+          </div>
+        </div>
+        <div id="detail" class="detail"></div>
+      </section>
+    </main>
+    <footer class="index-strip">
+      <span>Made for campus life.</span
+      ><span>Discover events. Join in. <b>↗</b></span
+      ><span>BITS Hyderabad</span>
+    </footer>
+    <dialog id="postDialog">
+      <form id="postForm">
+        <div class="dialog-heading">
+          <h2>Add a campus event.</h2>
+          <button type="button" class="close" aria-label="Close">×</button>
+        </div>
+        <p id="postIntro">
+          Add the details, choose a location, and help students discover your
+          event.
+        </p>
+        <label
+          >Event title<input
+            name="title"
+            required
+            maxlength="80"
+            placeholder="Evening acoustic jam"
+        /></label>
+        <div class="row">
+          <label
+            >Category<select name="category">
+              <option>Speaker</option>
+              <option>Workshop</option>
+              <option>Contest</option>
+              <option>Fun</option>
+              <option>Other</option>
+              <option>Empty classroom</option>
+            </select></label
+          >
+        </div>
+        <div class="row">
+          <label
+            >Starts<input name="start" type="datetime-local" required /></label
+          ><label
+            >Ends<input name="end" type="datetime-local" required
+          /></label>
+        </div>
+        <label
+          >Saved venue<select name="venue">
+            <option value="">Other classroom / place</option>
+          </select></label
+        >
+        <label
+          >Campus area<select name="area">
+            <option>Academic block</option>
+            <option>Auditorium</option>
+            <option>Rock Garden</option>
+            <option>Sports area (illustrative)</option>
+            <option>Custom pin</option>
+          </select></label
+        >
+        <div class="location-status" id="locationStatus">
+          Choose an area, or pick a point on the map.
+        </div>
+        <button type="button" id="chooseMap" class="text-button">
+          Pick exact point on map ↗</button
+        ><label
+          >Exact spot<input
+            name="room"
+            required
+            placeholder="e.g. E-101 · first floor, near the stairs"
+            maxlength="140" /></label
+        ><label
+          >Hosted by<input
+            name="host"
+            required
+            placeholder="Club, group, or your name"
+            maxlength="80" /></label
+        ><label
+          >Description<textarea
+            name="description"
+            required
+            maxlength="500"
+            placeholder="What’s happening? Who can join?"
+          ></textarea></label
+        ><label
+          >Event link (optional)<input
+            name="link"
+            type="url"
+            placeholder="https://…"
+        /></label>
+        <p class="footnote" id="postingNote">
+          Demo only. No account required. Saved on this device.
+        </p>
+        <label class="request-honeypot" aria-hidden="true"
+          >Leave this blank<input
+            name="website"
+            tabindex="-1"
+            autocomplete="off"
+        /></label>
+        <p id="submissionStatus" role="status"></p>
+        <button class="primary" type="submit">Submit for approval →</button>
+      </form>
+    </dialog>
+    <dialog id="venueSetupDialog">
+      <div class="dialog-heading">
+        <h2>Set venue pins</h2>
+        <button class="close" aria-label="Close">×</button>
+      </div>
+      <p>
+        Choose a room, zoom in, tap its location, then save. These are private
+        drafts in this browser; they do not change the public map yet.
+      </p>
+      <label class="venue-choice-label"
+        >Room / venue<select id="setupVenueChoice"></select
+      ></label>
+      <button id="placeVenue" class="primary">Place on map →</button>
+      <p id="venueSetupStatus" role="status"></p>
+      <ul id="venueDraftList"></ul>
+      <button id="downloadVenueDrafts" class="primary" disabled>
+        Download locations
+      </button>
+      <p>
+        When finished, attach the downloaded file in this chat so the saved
+        locations can be applied for everyone.
+      </p>
+      <details>
+        <summary>Location data</summary>
+        <textarea
+          id="venueDraftData"
+          readonly
+          aria-label="Saved venue location data"
+        ></textarea>
+      </details>
+    </dialog>
+    <dialog id="reviewDialog">
+      <div class="dialog-heading">
+        <h2>Event requests</h2>
+        <button class="close" aria-label="Close">×</button>
+      </div>
+      <p>
+        Review the event details and location before approving. Future events
+        appear publicly when they start.
+      </p>
+      <button id="refreshReviews" class="text-button">Refresh requests</button>
+      <p id="reviewStatus" role="status"></p>
+      <div id="reviewRequests"></div>
+    </dialog>
+    <dialog id="reportDialog">
+      <form id="reportForm">
+        <div class="dialog-heading">
+          <h2>Report an event</h2>
+          <button type="button" class="close" aria-label="Close">×</button>
+        </div>
+        <p id="reportSubject" class="report-subject"></p>
+        <p>
+          Tell the owner what needs checking. No login or contact details
+          needed.
+        </p>
+        <label>Reason<select name="reason" required></select></label>
+        <label
+          >Details (optional unless you choose Other)<textarea
+            name="details"
+            maxlength="500"
+            placeholder="For example: the workshop has moved to F103."
+          ></textarea>
+        </label>
+        <label class="request-honeypot" aria-hidden="true"
+          >Leave this blank<input
+            name="website"
+            tabindex="-1"
+            autocomplete="off"
+        /></label>
+        <p id="reportStatus" role="status"></p>
+        <button id="sendReport" class="primary" type="submit">
+          Send report
+        </button>
+      </form>
+    </dialog>
+    <dialog id="reportsDialog">
+      <div class="dialog-heading">
+        <h2>Event reports</h2>
+        <button class="close" aria-label="Close">×</button>
+      </div>
+      <p>
+        Check reported details, edit or cancel the event if needed, then resolve
+        or dismiss the report. Cancelling an event also resolves its open
+        reports.
+      </p>
+      <div class="management-filters">
+        <label
+          >Show<select id="reportsFilter">
+            <option value="open">Open reports</option>
+            <option value="resolved">Resolved</option>
+            <option value="dismissed">Dismissed</option>
+            <option value="all">All reports</option>
+          </select></label
+        >
+      </div>
+      <button id="refreshReports" class="text-button">Refresh reports</button>
+      <p id="reportsStatus" role="status"></p>
+      <div id="reportedEvents"></div>
+    </dialog>
+    <dialog id="trackingDialog">
+      <div class="dialog-heading">
+        <h2>My event requests</h2>
+        <button class="close" aria-label="Close">×</button>
+      </div>
+      <p>
+        Check whether your event is pending, approved or rejected. No login
+        needed. Keep your tracking link private.
+      </p>
+      <button id="refreshTracking" class="text-button">Refresh status</button>
+      <p id="trackingStatus" role="status"></p>
+      <div id="trackedRequests"></div>
+    </dialog>
+    <dialog id="manageDialog">
+      <div class="dialog-heading">
+        <h2>Manage all events</h2>
+        <button class="close" aria-label="Close">×</button>
+      </div>
+      <p>
+        Your owner view includes events published by every reviewer. Changes
+        appear on the public map while an event is live.
+      </p>
+      <div class="management-filters">
+        <label
+          >Search events<input
+            id="manageSearch"
+            type="search"
+            placeholder="Title, venue or host"
+        /></label>
+        <label
+          >Show<select id="manageFilter">
+            <option value="active">Live and upcoming</option>
+            <option value="live">Live</option>
+            <option value="upcoming">Upcoming</option>
+            <option value="ended">Ended</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="all">All events</option>
+          </select></label
+        >
+      </div>
+      <button id="refreshManagedEvents" class="text-button">
+        Refresh events
+      </button>
+      <p id="manageStatus" role="status"></p>
+      <div id="managedEvents"></div>
+    </dialog>
+    <dialog id="authDialog">
+      <form id="authForm">
+        <div class="dialog-heading">
+          <h2>Organizer sign in</h2>
+          <button type="button" class="close" aria-label="Close">×</button>
+        </div>
+        <p>
+          Use your email as your login ID. Only approved accounts can review
+          requests or manage venue pins.
+        </p>
+        <div class="auth-methods" role="group" aria-label="Sign-in method">
+          <button type="button" data-auth-mode="password" aria-pressed="true">
+            Password</button
+          ><button type="button" data-auth-mode="link" aria-pressed="false">
+            Email link
+          </button>
+        </div>
+        <label
+          >Email / login ID<input
+            id="organizerEmail"
+            type="email"
+            autocomplete="username"
+            required
+        /></label>
+        <label id="organizerPasswordField"
+          >Password<input
+            id="organizerPassword"
+            type="password"
+            autocomplete="current-password"
+            required
+        /></label>
+        <button class="primary" id="authSubmit" type="submit">Sign in</button>
+        <button class="text-button" id="forgotPassword" type="button">
+          Forgot password?
+        </button>
+        <p class="footnote">
+          First time? Choose Email link, sign in once, then choose Set / change
+          password.
+        </p>
+        <p id="authStatus" role="status"></p>
+      </form>
+    </dialog>
+    <dialog id="passwordDialog">
+      <form id="passwordForm">
+        <div class="dialog-heading">
+          <h2>Set your password</h2>
+          <button type="button" class="close" aria-label="Close">×</button>
+        </div>
+        <p>
+          Use at least 8 characters. This password is for your signed-in
+          account.
+        </p>
+        <label
+          >New password<input
+            id="newOrganizerPassword"
+            type="password"
+            autocomplete="new-password"
+            minlength="8"
+            required
+        /></label>
+        <label
+          >Confirm password<input
+            id="confirmOrganizerPassword"
+            type="password"
+            autocomplete="new-password"
+            minlength="8"
+            required
+        /></label>
+        <button class="primary" id="passwordSubmit" type="submit">
+          Save password
+        </button>
+        <p id="passwordStatus" role="status"></p>
+      </form>
+    </dialog>
+    <dialog id="aboutDialog">
+      <div class="dialog-heading">
+        <h2>One campus. Every event.</h2>
+        <button class="close" aria-label="Close">×</button>
+      </div>
+      <p>
+        A campus map with a shared event layer: discover events, drop a pin,
+        open details, and mark your interest.
+      </p>
+      <ol>
+        <li><b>Explore:</b> browse event pins and filter by interest.</li>
+        <li>
+          <b>Know exactly where:</b> open a card for building, floor, room,
+          host, time, and links.
+        </li>
+        <li>
+          <b>Contribute:</b> pick a point, add exact room details, and post an
+          event.
+        </li>
+      </ol>
+      <p id="aboutStorage">
+        Events are shared across devices. Visitors submit event requests for
+        review and can track new requests with a private link. Interested
+        selections stay in this browser. Event reports go to the private owner
+        queue. Map locations use OpenStreetMap data and confirmed venue pins.
+      </p>
+      <p class="footnote">
+        Campus shown: BITS Hyderabad. Locations and room details in sample
+        events are illustrative.
+      </p>
+    </dialog>
+    <div id="toast" role="status"></div>
+    <script src="public/vendor/maplibre-gl.js"></script>
+    <script type="module" src="src/app.js?features=3"></script>
+  </body>
+</html>
