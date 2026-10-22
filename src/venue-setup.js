@@ -1,4 +1,10 @@
-import { SAVED_VENUES, savedVenue } from "./data/venues.js";
+import { SAVED_VENUES } from "./data/venues.js";
+import { FOOD_SPOTS } from "./data/food-spots.js";
+const PLACES = [
+  ...SAVED_VENUES.map((venue) => ({ ...venue, group: "venues" })),
+  ...FOOD_SPOTS.map((spot) => ({ ...spot, group: "food_spots" })),
+];
+const placeById = (id) => PLACES.find((place) => place.id === id);
 import { inside, esc } from "./utils.js";
 const KEY = "pinpoint-venue-drafts-v1";
 
@@ -18,7 +24,7 @@ export function createVenueSetup({
     marker = null;
   try {
     const saved = JSON.parse(storage?.getItem(KEY) || "{}");
-    for (const venue of SAVED_VENUES)
+    for (const venue of PLACES)
       if (inside(saved?.[venue.id]?.coords)) drafts[venue.id] = saved[venue.id];
   } catch {}
   function allowed() {
@@ -26,7 +32,7 @@ export function createVenueSetup({
   }
   function data() {
     return {
-      version: 1,
+      version: 2,
       venues: SAVED_VENUES.filter((v) => drafts[v.id]).map((v) => ({
         id: v.id,
         label: v.label,
@@ -35,13 +41,25 @@ export function createVenueSetup({
         coords: drafts[v.id].coords,
         accuracy: "confirmed",
       })),
+      food_spots: FOOD_SPOTS.filter((v) => drafts[v.id]).map((v) => ({
+        id: v.id,
+        label: v.label,
+        coords: drafts[v.id].coords,
+        place_type: "food",
+        accuracy: "confirmed",
+      })),
     };
   }
   function redraw() {
-    $("#venueDraftList").innerHTML = SAVED_VENUES.map(
-      (venue) =>
-        `<li><span>${esc(venue.label)}</span><strong>${drafts[venue.id] ? "Placed ✓" : "Not placed"}</strong></li>`,
-    ).join("");
+    const group = placeById($("#setupVenueChoice").value)?.group || "venues";
+    $("#venueDraftList").innerHTML = PLACES.filter(
+      (place) => place.group === group,
+    )
+      .map(
+        (venue) =>
+          `<li><span>${esc(venue.label)}</span><strong>${drafts[venue.id] ? "Placed ✓" : "Not placed"}</strong></li>`,
+      )
+      .join("");
     $("#venueDraftData").value = JSON.stringify(data(), null, 2);
     $("#downloadVenueDrafts").disabled = !Object.keys(drafts).length;
   }
@@ -59,9 +77,23 @@ export function createVenueSetup({
     redraw();
     dialog.showModal();
   }
-  $("#setupVenueChoice").innerHTML = SAVED_VENUES.map(
-    (venue) => `<option value="${venue.id}">${esc(venue.label)}</option>`,
-  ).join("");
+  $("#setupVenueChoice").innerHTML = [
+    ["venues", "Event venues"],
+    ["food_spots", "Food spots"],
+  ]
+    .map(
+      ([group, label]) =>
+        `<optgroup label="${label}">${PLACES.filter(
+          (place) => place.group === group,
+        )
+          .map(
+            (place) =>
+              `<option value="${place.id}">${esc(place.label)}</option>`,
+          )
+          .join("")}</optgroup>`,
+    )
+    .join("");
+  $("#setupVenueChoice").onchange = redraw;
   $("#placeVenue").onclick = () => {
     if (!allowed()) return;
     const map = getMap();
@@ -71,7 +103,7 @@ export function createVenueSetup({
     }
     beforePick();
     active = $("#setupVenueChoice").value;
-    const venue = savedVenue(active);
+    const venue = placeById(active);
     point = null;
     marker?.remove();
     marker = null;
@@ -83,7 +115,7 @@ export function createVenueSetup({
     $("#campusMap").classList.add("picking");
     $(".map").classList.add("venue-setup-active");
     map.easeTo({
-      center: drafts[active]?.coords || venue.coords,
+      center: drafts[active]?.coords || venue.coords || venue.focus,
       zoom: Math.max(map.getZoom(), 18),
       duration: 450,
     });
@@ -95,7 +127,7 @@ export function createVenueSetup({
   };
   $("#saveVenuePoint").onclick = () => {
     if (!allowed() || !active || !inside(point)) return;
-    const venue = savedVenue(active);
+    const venue = placeById(active);
     drafts[active] = { coords: [...point] };
     let persisted = false;
     try {
@@ -104,12 +136,12 @@ export function createVenueSetup({
         persisted = true;
       }
     } catch {}
-    const next = SAVED_VENUES.find((v) => !drafts[v.id]);
+    const next = PLACES.find((v) => v.group === venue.group && !drafts[v.id]);
     cancel();
-    redraw();
     if (next) $("#setupVenueChoice").value = next.id;
+    redraw();
     $("#venueSetupStatus").textContent = persisted
-      ? `${venue.label} saved in this browser. Choose the next room, or download your locations.`
+      ? `${venue.label} saved in this browser. Choose the next place, or download your locations.`
       : `${venue.label} saved for this session. Download the file before closing this page.`;
     dialog.showModal();
   };
@@ -120,7 +152,7 @@ export function createVenueSetup({
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = "pinpoint-venue-locations.json";
+    link.download = "pinpoint-map-locations.json";
     document.body.append(link);
     link.click();
     link.remove();
@@ -146,12 +178,12 @@ export function createVenueSetup({
       marker?.remove();
       const el = document.createElement("div");
       el.className = "venue-calibration-pin";
-      el.textContent = savedVenue(active).label;
+      el.textContent = placeById(active).label;
       marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
         .setLngLat(point)
         .addTo(getMap());
       $("#venuePlacementLabel").textContent =
-        `${savedVenue(active).label} selected. Tap again to adjust, then Save location.`;
+        `${placeById(active).label} selected. Tap again to adjust, then Save location.`;
       $("#saveVenuePoint").disabled = false;
       return true;
     },

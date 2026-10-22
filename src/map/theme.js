@@ -1,4 +1,4 @@
-import { CAMPUS_STREET_STYLE } from "./street-style.js";
+import { CAMPUS_STREET_STYLE } from "./street-style.js?places=12";
 const DARK_COLORS = {
   "#fff3e4": "#bfb3a7",
   "#cfe1af": "#8c9d7a",

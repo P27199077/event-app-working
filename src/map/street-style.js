@@ -5,7 +5,7 @@ export const CAMPUS_STREET_STYLE = {
   sources: {
     "campus-street": {
       type: "geojson",
-      data: "public/data/campus-street.geojson",
+      data: "public/data/campus-street.geojson?places=2",
       attribution:
         '\u00a9 <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>',
     },

@@ -1,7 +1,7 @@
-import { streetLayersForTheme, applyMapTheme } from "./theme.js?palette=11";
+import { streetLayersForTheme, applyMapTheme } from "./theme.js?places=12";
 import { CAMPUS_BOUNDARY } from "../data/campus-boundary.js";
 import { campusRing, bounds } from "../data/campus.js";
-import { CAMPUS_STREET_STYLE } from "./street-style.js";
+import { CAMPUS_STREET_STYLE } from "./street-style.js?places=12";
 const $ = (selector) => document.querySelector(selector);
 export function fit(map) {
   if (map)

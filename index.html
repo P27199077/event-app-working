@@ -87,7 +87,7 @@
             Set / change password
           </button>
           <button id="venueSetup" class="text-button" hidden>
-            Set venue pins
+            Set map places
           </button>
           <button id="reviewReports" class="text-button" hidden>
             Review reports
@@ -322,15 +322,16 @@
     </dialog>
     <dialog id="venueSetupDialog">
       <div class="dialog-heading">
-        <h2>Set venue pins</h2>
+        <h2>Set map places</h2>
         <button class="close" aria-label="Close">×</button>
       </div>
       <p>
-        Choose a room, zoom in, tap its location, then save. These are private
-        drafts in this browser; they do not change the public map yet.
+        Choose a venue or food spot, zoom in, tap the centre of its location,
+        then save. These are private drafts in this browser; they do not change
+        the public map yet.
       </p>
       <label class="venue-choice-label"
-        >Room / venue<select id="setupVenueChoice"></select
+        >Venue / food spot<select id="setupVenueChoice"></select
       ></label>
       <button id="placeVenue" class="primary">Place on map →</button>
       <p id="venueSetupStatus" role="status"></p>
@@ -347,7 +348,7 @@
         <textarea
           id="venueDraftData"
           readonly
-          aria-label="Saved venue location data"
+          aria-label="Saved map location data"
         ></textarea>
       </details>
     </dialog>
@@ -572,6 +573,6 @@
     </dialog>
     <div id="toast" role="status"></div>
     <script src="public/vendor/maplibre-gl.js"></script>
-    <script type="module" src="src/app.js?mobile=4"></script>
+    <script type="module" src="src/app.js?places=5"></script>
   </body>
 </html>

@@ -1,7 +1,7 @@
 import { createEventReporting } from "./event-reports.js";
 import { initializeThemeToggle } from "./theme.js";
 import { createOrganizerAuth } from "./organizer-auth.js";
-import { createVenueSetup } from "./venue-setup.js";
+import { createVenueSetup } from "./venue-setup.js?places=2";
 import { renderEventPins } from "./map/event-pins.js";
 import { countdown, locationLabel } from "./event-presentation.js";
 import { SAVED_VENUES, savedVenue } from "./data/venues.js";
@@ -17,7 +17,7 @@ import { areas } from "./data/campus.js";
 import { H } from "./data/events.js";
 import { loadState, persistState } from "./data/storage.js";
 import { esc, safeLink, inside, ongoing, date, time } from "./utils.js";
-import { createCampusMap, fit } from "./map/map.js?theme=11";
+import { createCampusMap, fit } from "./map/map.js?places=12";
 import { CAMPUS_STREET_STYLE } from "./map/street-style.js";
 const $ = (selector) => document.querySelector(selector);
 initializeThemeToggle();
