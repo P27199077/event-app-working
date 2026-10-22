@@ -9,7 +9,8 @@
     "test": "node --test tests/unit/*.test.js",
     "test:browser": "playwright test",
     "build:vendor": "esbuild scripts/supabase-entry.js --bundle --format=esm --platform=browser --minify --outfile=public/vendor/supabase.js",
-    "test:reports-db": "node --test tests/database/event-reports.test.js"
+    "test:reports-db": "node --test tests/database/event-reports.test.js",
+    "test:time-db": "node --test tests/database/event-time-view.test.js"
   },
   "repository": {
     "type": "git",

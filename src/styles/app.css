@@ -2235,3 +2235,43 @@ form input:read-only {
 #reportsDialog {
   width: min(760px, calc(100vw - 28px));
 }
+
+/* Keep the time chooser compact so the map stays in focus on phones. */
+.view-time-button {
+  pointer-events: auto;
+  border: 1px solid var(--line, #d6cec5);
+  border-radius: 20px;
+  background: transparent;
+  padding: 7px 10px;
+  color: inherit;
+  max-width: 47%;
+  flex-shrink: 0;
+}
+.view-time-button span {
+  min-width: 0;
+}
+.view-time-button.time-preview {
+  font-size: 10px;
+}
+.view-time-button.time-preview > span:nth-child(2) {
+  max-width: 160px;
+}
+#timeViewDialog .detail-actions {
+  flex-wrap: wrap;
+}
+@media (max-width: 440px) {
+  .map-heading {
+    gap: 8px;
+    right: 12px;
+  }
+  .map-heading > span {
+    min-width: 0;
+  }
+  .view-time-button {
+    padding: 7px 8px;
+    font-size: 10px;
+  }
+  .view-time-button.time-preview {
+    font-size: 9px;
+  }
+}

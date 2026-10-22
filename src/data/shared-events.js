@@ -21,6 +21,20 @@ export async function fetchEvents(userId) {
   }
   return rows.map((row) => fromRow(row, userId));
 }
+export async function fetchEventsAtTime(instant, userId) {
+  const rows = [];
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await supabase.rpc("events_at_time", {
+      view_time: instant,
+      page_size: 500,
+      page_offset: offset,
+    });
+    if (error) throw error;
+    rows.push(...data);
+    if (data.length < 500) break;
+  }
+  return rows.map((row) => fromRow(row, userId));
+}
 export async function createEvent(event, userId) {
   const { data, error } = await supabase
     .from("events")

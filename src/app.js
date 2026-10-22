@@ -1,3 +1,9 @@
+import {
+  createEventClock,
+  istInput,
+  parseIstInput,
+  activeAt,
+} from "./event-clock.js";
 import { createEventReporting } from "./event-reports.js";
 import { initializeThemeToggle } from "./theme.js";
 import { createOrganizerAuth } from "./organizer-auth.js";
@@ -16,7 +22,7 @@ import { visibleAtTime } from "./data/event-visibility.js";
 import { areas } from "./data/campus.js";
 import { H } from "./data/events.js";
 import { loadState, persistState } from "./data/storage.js";
-import { esc, safeLink, inside, ongoing, date, time } from "./utils.js";
+import { esc, safeLink, inside, ongoing, date } from "./utils.js";
 import { createCampusMap, fit } from "./map/map.js?places=12";
 import { CAMPUS_STREET_STYLE } from "./map/street-style.js";
 const $ = (selector) => document.querySelector(selector);
@@ -63,7 +69,9 @@ let backend,
   organizer = false,
   owner = false,
   posting = false,
-  syncing = false;
+  syncing = false,
+  syncRequested = false,
+  syncGeneration = 0;
 
 const reporting = createEventReporting({
   getBackend: () => backend,
@@ -89,6 +97,19 @@ let filter = "All",
   draftPoint = null,
   satellite = false,
   showEmptyClassrooms = false;
+const eventClock = createEventClock({
+  onChange() {
+    syncGeneration++;
+    selected = null;
+    selectedGroup = null;
+    if (SHARED_EVENTS_ENABLED) state.events = [];
+    $("#connectionStatus").textContent = "Loading events…";
+    render();
+    syncSharedEvents();
+  },
+});
+const eventTiming = (event) =>
+  eventClock.isPreview() ? `Ends ${date(event.end)} IST` : countdown(event);
 function toast(s, duration = 4000) {
   $("#toast").textContent = s;
   $("#toast").style.display = "block";
@@ -113,10 +134,14 @@ function shownEvents() {
     (e) =>
       inside(e.coords) &&
       (e.category !== "Empty classroom" || showEmptyClassrooms) &&
-      visibleAtTime(e, view) &&
+      (eventClock.isPreview()
+        ? activeAt(e, eventClock.now()) && (view !== "Mine" || e.mine)
+        : visibleAtTime(e, view)) &&
       (view !== "Interested" || state.rsvps.includes(e.id)) &&
       (filter === "All" ||
-        (filter === "Now" ? ongoing(e) : e.category === filter)) &&
+        (filter === "Now"
+          ? activeAt(e, eventClock.now())
+          : e.category === filter)) &&
       [e.title, e.area, e.host, e.room].join(" ").toLowerCase().includes(q),
   );
 }
@@ -155,6 +180,15 @@ function render() {
     render,
     Math.min(60000, ...boundaries.map((t) => t - now + 20)),
   );
+  eventClock.update();
+  const preview = eventClock.isPreview();
+  $("[data-filter='Now']").textContent = preview
+    ? "At chosen time"
+    : "Happening now";
+  if (SHARED_EVENTS_ENABLED)
+    $("#feedNote").textContent = preview
+      ? `Events at ${date(eventClock.now())} IST · Your interest stays in this browser.`
+      : "Live campus events · Your interest stays in this browser.";
   let shown = shownEvents();
   $("#count").textContent =
     shown.length + " " + (shown.length === 1 ? "event" : "events");
@@ -163,15 +197,17 @@ function render() {
       ? "My events"
       : view === "Interested"
         ? "Events you’re interested in"
-        : "Happening now on campus";
+        : preview
+          ? `Events at ${date(eventClock.now())} IST`
+          : "Happening now on campus";
   $("#events").innerHTML = shown.length
     ? shown
         .map(
           (e) =>
-            `<button data-category="${esc(e.category)}" class="event ${selected === e.id ? "selected" : ""}" data-id="${e.id}"><div class="event-top"><span class="tag">${esc(e.category)}</span><span>${esc(countdown(e))}</span></div><h3>${esc(e.title)}<span class="event-arrow" aria-hidden="true">↗</span></h3><p class="event-location">⌖ ${esc(locationLabel(e))}</p><p class="host">By ${esc(e.host)}${state.rsvps.includes(e.id) ? " · ✓ Interested" : ""}</p></button>`,
+            `<button data-category="${esc(e.category)}" class="event ${selected === e.id ? "selected" : ""}" data-id="${e.id}"><div class="event-top"><span class="tag">${esc(e.category)}</span><span>${esc(eventTiming(e))}</span></div><h3>${esc(e.title)}<span class="event-arrow" aria-hidden="true">↗</span></h3><p class="event-location">⌖ ${esc(locationLabel(e))}</p><p class="host">By ${esc(e.host)}${state.rsvps.includes(e.id) ? " · ✓ Interested" : ""}</p></button>`,
         )
         .join("")
-    : `<p class="empty">${view === "Mine" ? (SHARED_EVENTS_ENABLED && !currentUser ? "Organizers: sign in to see and manage your events." : "Your posted events will appear here.") : view === "Interested" ? "See something you’d like to join? Tap “I’m interested” on a live event." : "No live events match right now. Try another filter or check back soon."}</p>`;
+    : `<p class="empty">${view === "Mine" ? (SHARED_EVENTS_ENABLED && !currentUser ? "Organizers: sign in to see and manage your events." : "Your posted events will appear here.") : view === "Interested" ? (preview ? "No interested events at the chosen time. Explore the map to find events." : "See something you’d like to join? Tap “I’m interested” on a live event.") : preview ? "No events match this time. Choose another time or filter." : "No live events match right now. Try another filter or check back soon."}</p>`;
   let pinGroups = [];
   if (map) {
     const result = renderEventPins(map, shown, {
@@ -195,18 +231,18 @@ function render() {
     ? `<button class="close" id="closeDetail" aria-label="Close event details">×</button>
       <span class="badge">${esc(e.category)} · ${e.mine ? "YOUR EVENT" : SHARED_EVENTS_ENABLED ? "CAMPUS EVENT" : "SAMPLE EVENT"}</span>
       <h2>${esc(e.title)}</h2>
-      <p class="event-countdown">${esc(countdown(e))}</p>
+      <p class="event-countdown">${esc(eventTiming(e))}</p>
       <dl class="event-facts"><div><dt>Where</dt><dd>${esc(locationLabel(e))}</dd></div>
       <div><dt>When · IST</dt><dd>${esc(date(e.start))} – ${esc(date(e.end))}</dd></div>
       <div><dt>Hosted by</dt><dd>${esc(e.host)}</dd></div></dl>
       <p>${esc(e.description)}</p>
       ${safeLink(e.link) ? `<a class="event-link" href="${esc(safeLink(e.link))}" target="_blank" rel="noopener noreferrer">Event / registration link ↗</a>` : ""}
-      <div class="detail-actions">${ongoing(e) ? `<button class="primary" id="interest" aria-pressed="${state.rsvps.includes(e.id)}">${state.rsvps.includes(e.id) ? "✓ Interested · Remove" : "I’m interested"}</button>` : ""}
+      <div class="detail-actions">${Date.parse(e.end) > Date.now() && (preview || ongoing(e)) ? `<button class="primary" id="interest" aria-pressed="${state.rsvps.includes(e.id)}">${state.rsvps.includes(e.id) ? "✓ Interested · Remove" : "I’m interested"}</button>` : ""}
       ${owner ? '<button class="text-button" id="editEvent">Edit event</button>' : ""}
-      ${e.mine ? '<button class="text-button" id="cancelEvent">Cancel event</button>' : owner ? '<button class="text-button" id="openManagement">Manage event</button>' : '<button class="text-button" id="reportEvent">Report event</button>'}</div>
-      <p class="footnote">${ongoing(e) ? "Interest stays on this device. Follow the event link for registration, if required." : "Upcoming event · Appears on the public map when it starts."}</p>`
+      ${e.mine ? '<button class="text-button" id="cancelEvent">Cancel event</button>' : owner ? '<button class="text-button" id="openManagement">Manage event</button>' : ongoing(e) ? '<button class="text-button" id="reportEvent">Report event</button>' : ""}</div>
+      <p class="footnote">${preview ? `Viewing events at ${esc(date(eventClock.now()))} IST. Interest stays on this device.` : ongoing(e) ? "Interest stays on this device. Follow the event link for registration, if required." : "Scheduled event · Choose its time to preview it on the map."}</p>`
     : group
-      ? `<button class="close" id="closeDetail" aria-label="Close events at this pin">×</button><span class="badge">${group.events.length} EVENTS AT THIS PIN</span><h2>Choose an event</h2><p>Zoom in to see individual pins, or choose an event below.</p>${group.events.map((event) => `<button class="venue-event-choice" data-id="${esc(event.id)}"><strong>${esc(event.title)}</strong><span>${esc(locationLabel(event))}</span><span>${esc(countdown(event))} · ${esc(event.host)}</span></button>`).join("")}`
+      ? `<button class="close" id="closeDetail" aria-label="Close events at this pin">×</button><span class="badge">${group.events.length} EVENTS AT THIS PIN</span><h2>Choose an event</h2><p>Zoom in to see individual pins, or choose an event below.</p>${group.events.map((event) => `<button class="venue-event-choice" data-id="${esc(event.id)}"><strong>${esc(event.title)}</strong><span>${esc(locationLabel(event))}</span><span>${esc(eventTiming(event))} · ${esc(event.host)}</span></button>`).join("")}`
       : "";
   if ($("#closeDetail"))
     $("#closeDetail").onclick = () => {
@@ -303,10 +339,9 @@ function startPicking() {
   $("#campusMap").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 function localInput(d) {
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 16);
+  return istInput(d.getTime());
 }
+
 function updatePostCopy() {
   $("#postDialog h2").textContent = editingEvent
     ? "Edit event."
@@ -322,7 +357,7 @@ function updatePostCopy() {
   $("#postingNote").textContent = editingEvent
     ? editingEvent.status === "cancelled"
       ? "This event is cancelled. Saving edits does not restore it to the map."
-      : "Changes appear publicly while the event is live. Upcoming events stay hidden until they start."
+      : "Scheduled events appear at their selected time and automatically in live mode when they start."
     : organizer
       ? "You are signed in as a reviewer. Your own events can be published directly."
       : "Requests are reviewed before appearing on the map. No student login required.";
@@ -455,8 +490,8 @@ $("#postForm").onsubmit = async (e) => {
   )
     return;
   let data = Object.fromEntries(new FormData(e.target)),
-    start = new Date(data.start),
-    end = new Date(data.end);
+    start = new Date(parseIstInput(data.start) ?? NaN),
+    end = new Date(parseIstInput(data.end) ?? NaN);
   if (
     !Number.isFinite(start.getTime()) ||
     !Number.isFinite(end.getTime()) ||
@@ -557,7 +592,7 @@ $("#postForm").onsubmit = async (e) => {
     item.category === "Empty classroom" && !showEmptyClassrooms
       ? "Classroom saved. Turn on Empty classrooms in the map key to show it."
       : SHARED_EVENTS_ENABLED
-        ? "Event published. It appears publicly when it starts."
+        ? "Event published. Choose its time to preview it; it appears in live mode when it starts."
         : "Event added to My events on this device.",
   );
   resetDraft();
@@ -644,22 +679,50 @@ function canPost() {
   return true;
 }
 async function syncSharedEvents() {
-  if (!backend || syncing) return;
+  if (!backend) return;
+  if (syncing) {
+    syncRequested = true;
+    return;
+  }
   syncing = true;
+  const requestedUser = currentUser?.id,
+    requestedTime = eventClock.value(),
+    generation = syncGeneration;
+  const stillCurrent = () =>
+    currentUser?.id === requestedUser &&
+    eventClock.value() === requestedTime &&
+    syncGeneration === generation;
   try {
-    const requestedUser = currentUser?.id;
-    const events = await backend.fetchEvents(requestedUser);
-    if (currentUser?.id !== requestedUser) return;
+    const events =
+      requestedTime === null
+        ? await backend.fetchEvents(requestedUser)
+        : await backend.fetchEventsAtTime(
+            new Date(requestedTime).toISOString(),
+            requestedUser,
+          );
+    if (!stillCurrent()) {
+      syncRequested = true;
+      return;
+    }
     state.events = events;
     $("#connectionStatus").textContent = "";
     render();
   } catch (error) {
-    $("#connectionStatus").textContent =
-      backend.friendlyError(error) + " Displayed events may be out of date.";
+    if (stillCurrent())
+      $("#connectionStatus").textContent =
+        requestedTime !== null && ["PGRST202", "42883"].includes(error?.code)
+          ? "Time browsing needs the database update. Choose Back to live now to return to current events."
+          : backend.friendlyError(error) +
+            " Displayed events may be out of date.";
   } finally {
     syncing = false;
+    if (syncRequested) {
+      syncRequested = false;
+      syncSharedEvents();
+    }
   }
 }
+
 async function updateAccount(session) {
   currentUser = session?.user || null;
   organizer = false;
@@ -719,7 +782,6 @@ async function initializeSharedEvents() {
   if (!SHARED_EVENTS_ENABLED) return;
   $("#organizerLogin").hidden = false;
   $("#connectionStatus").textContent = "Loading live events…";
-  $(".live").innerHTML = "<i></i> Live events";
   $("#postingNote").textContent =
     "Anyone can request an event. Requests appear publicly after review and approval.";
   $("#feedNote").textContent =
@@ -727,7 +789,7 @@ async function initializeSharedEvents() {
   $("#aboutStorage").textContent =
     "Events are shared across devices. Anyone can submit a request. Reviewers approve or reject requests before they appear publicly. Your Interested shortlist stays in this browser. Event reports go privately to the owner for review.";
   try {
-    backend = await import("./data/shared-events.js?features=3");
+    backend = await import("./data/shared-events.js?time=6");
     eventManager = createEventManager({
       backend,
       ownerIdentity: () => (owner && currentUser ? currentUser.id : null),

@@ -105,3 +105,11 @@ Verification: 21 unit tests and seven database scenarios passed. Database scenar
 Import the GitHub repository into Vercel with the repository root as the root directory and framework preset Other. The checked-in `vercel.json` runs `node scripts/build-site.js` and serves only `site/`, which contains the runtime HTML, source modules and public assets. Dependencies are already bundled, so deployment skips package installation. SQL migrations, tests, reference images and local previews are excluded from the public site.
 
 Push changes to the connected production branch (`main`) to redeploy automatically. Database migrations still need to be applied separately in Supabase; deployments do not change the database. Add the final HTTPS Vercel address to Supabase Auth URL Configuration for organizer email links and password recovery.
+
+## Browse events at a chosen time
+
+The map opens in live mode on every page load. Its **Now** control opens a date/time chooser. A selected time uses IST, keeps the preview fixed while the real clock moves, and shows only approved events with `start <= selected time < end`. **Back to live now** restores the moving current-time feed. Search, categories, Interested and map groups use the selected time too; My events includes upcoming own events only in live mode.
+
+`supabase/event-time-view.sql` adds a paginated read-only function for approved events active at the chosen instant. The existing direct table policy is unchanged. Cancelled events and private requests are excluded; creator IDs are returned only to the matching signed-in user. The user confirmed application on 22 October 2026; live anonymous chosen-time reads returned 200 and invalid input was rejected.
+
+Event creation and editing now explicitly interpret inputs as IST on every device. Schedule entries can be entered before the fest and remain editable in owner management. No event dates are baked into application code. Run `npm run test:time-db` for the real SQL boundary and permission scenarios.

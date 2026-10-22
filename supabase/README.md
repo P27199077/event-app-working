@@ -84,3 +84,9 @@ Visitors submit reports through `submit_event_report`; they cannot read the repo
 Review actions resolve or dismiss reports without changing the event, or cancel the event and resolve all its open reports atomically. Cancellation uses the owner function with revision protection and can be reversed in owner management. Reports never automatically remove public events.
 
 `npm run test:reports-db` runs seven scenarios using the actual reporting migration and owner functions in local PostgreSQL via PGlite. They passed, along with 21 unit tests. Browser checks used isolated sample data for visitor submission, owner access and cancellation/history. After applying, verify live anonymous table access and review are denied, then test a report from a visitor browser and review it with the owner account. No reporting migration or authenticated reporting flow has yet been verified against the live project.
+
+## Selected-time browsing (applied)
+
+The user confirmed `event-time-view.sql` applied successfully on 22 October 2026. A live anonymous future-time request succeeded, and null viewing time was rejected with `22023`. The function returns approved events active at the selected instant, including future or past scheduled times, without changing direct table RLS or exposing private request records. Pagination is bounded to 500 per call. Other organizers' IDs are omitted. Live mode retains the existing feed.
+
+Local PostgreSQL tests cover overlapping events, inclusive starts/exclusive ends, pagination, equivalent timezone representations, invalid input, hidden cancelled events, private request-table denial and blocked direct writes. These do not replace testing a real populated fest schedule.

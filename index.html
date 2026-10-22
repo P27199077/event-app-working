@@ -6,7 +6,7 @@
     <title>PinPoint — BITS Hyderabad</title>
     <script src="src/theme-init.js"></script>
     <link rel="stylesheet" href="public/vendor/maplibre-gl.css" />
-    <link rel="stylesheet" href="src/styles/app.css?mobile=4" />
+    <link rel="stylesheet" href="src/styles/app.css?time=6" />
     <link rel="stylesheet" href="src/styles/themes.css?features=3" />
   </head>
   <body>
@@ -118,7 +118,15 @@
           <span
             ><b><span class="crosshair">⌖</span> A little look around</b
             ><small>BITS Hyderabad · North up</small></span
-          ><span class="live"><i></i> Demo preview</span>
+          ><button
+            id="viewTimeButton"
+            class="live view-time-button"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="timeViewDialog"
+          >
+            <i></i> Now ⌄
+          </button>
         </div>
         <div class="map-tools">
           <button id="fitCampus">⌖ Campus</button
@@ -227,6 +235,35 @@
       ><span>Discover events. Join in. <b>↗</b></span
       ><span>BITS Hyderabad</span>
     </footer>
+    <dialog id="timeViewDialog">
+      <form id="timeViewForm">
+        <div class="dialog-heading">
+          <h2>Explore another time</h2>
+          <button class="close" type="button" aria-label="Close">×</button>
+        </div>
+        <p>
+          Choose when you want to explore campus. Pins show approved events
+          running at that time.
+        </p>
+        <label
+          >Date and time (IST)<input
+            name="viewTime"
+            type="datetime-local"
+            required
+        /></label>
+        <p class="footnote">
+          All campus times use Indian Standard Time. Live mode follows the
+          current time automatically.
+        </p>
+        <div class="detail-actions">
+          <button class="primary" type="submit">Show events →</button
+          ><button id="returnToLive" class="text-button" type="button" hidden>
+            Back to live now
+          </button>
+        </div>
+        <p id="timeViewStatus" role="status"></p>
+      </form>
+    </dialog>
     <dialog id="postDialog">
       <form id="postForm">
         <div class="dialog-heading">
@@ -258,9 +295,12 @@
         </div>
         <div class="row">
           <label
-            >Starts<input name="start" type="datetime-local" required /></label
+            >Starts (IST)<input
+              name="start"
+              type="datetime-local"
+              required /></label
           ><label
-            >Ends<input name="end" type="datetime-local" required
+            >Ends (IST)<input name="end" type="datetime-local" required
           /></label>
         </div>
         <label
@@ -573,6 +613,6 @@
     </dialog>
     <div id="toast" role="status"></div>
     <script src="public/vendor/maplibre-gl.js"></script>
-    <script type="module" src="src/app.js?places=5"></script>
+    <script type="module" src="src/app.js?time=6"></script>
   </body>
 </html>
