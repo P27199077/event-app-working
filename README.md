@@ -66,6 +66,10 @@ Supabase shared mode is enabled after the schema was applied successfully. Organ
 
 ## Placing exact venue locations
 
+Organizer forms privately reuse classroom pins from that account's previously published events, including ended events. Typing variants such as `g102`, `G 102` or `G-102` selects the latest known `G102` point. Unknown or multi-room labels require a location choice; manual map points and existing event edits are preserved. The account-scoped browser cache and authenticated own-event history are separate from the public saved-venue list. No extra SQL migration is required.
+
+The ATMOS draft importer merges additional date batches by stable source ID and keeps existing draft edits and published progress. A date filter separates Day 1, Day 2 and Day 3. Booking-first files prefill their own room-booking date/time and show catalog discrepancies for review; new imports never publish events automatically.
+
 After signing in with an approved reviewer account, choose **Set venue pins**. Select each room, choose **Place on map**, zoom and click, then **Save location**. Drafts persist only in that browser and do not modify the public venue definitions or existing event pins. Download the JSON and provide it for applying reviewed coordinates to `src/data/venues.js`.
 
 The setup button is hidden for visitors. Opening, placing, and exporting also check reviewer state. There is no public API that changes the official venue catalog; official coordinates remain part of the deployed source. Auditorium, LTC Lobby, and F101–F106 now use the eight exact campus-owner locations imported on 22 October 2026. Existing event records keep their stored coordinates; new events use the confirmed defaults. Different events may share a venue and overlapping times. Nearby event markers group at low zoom and separate at high zoom, with visual offsets for identical coordinates.

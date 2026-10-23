@@ -95,6 +95,30 @@ export async function fetchRequests() {
   if (error) throw error;
   return data.map((row) => ({ ...fromRow(row), created: row.created_at }));
 }
+export async function fetchRoomHistory(userId) {
+  if (!userId) return [];
+  const rows = [];
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await supabase
+      .from("events")
+      .select("room,area,longitude,latitude,created_at,status")
+      .eq("organizer_id", userId)
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(offset, offset + 499);
+    if (error) throw error;
+    rows.push(...data);
+    if (data.length < 500) break;
+  }
+  return rows.map((row) => ({
+    room: row.room,
+    area: row.area,
+    coords: [row.longitude, row.latitude],
+    created: row.created_at,
+    status: row.status,
+  }));
+}
 export async function reviewRequest(id, approve, reason) {
   const { data, error } = await supabase.rpc(
     "review_event_request_with_reason",

@@ -84,7 +84,7 @@
             Manage all events
           </button>
           <button id="scheduleDrafts" class="text-button" hidden>
-            ATMOS Day 1 drafts
+            ATMOS event drafts
           </button>
           <button id="setPassword" class="text-button" hidden>
             Set / change password
@@ -346,10 +346,16 @@
         ><label
           >Exact spot<input
             name="room"
+            list="privateRoomNames"
             required
             placeholder="e.g. E-101 · first floor, near the stairs"
             maxlength="140" /></label
-        ><label
+        ><datalist id="privateRoomNames"></datalist>
+        <p class="footnote" id="privateRoomNote" hidden>
+          Your previously placed classroom pins are available only in your
+          organizer form. Type the room to reuse its pin.
+        </p>
+        <label
           >Hosted by<input
             name="host"
             required
@@ -387,13 +393,13 @@
     </dialog>
     <dialog id="scheduleDraftDialog">
       <div class="dialog-heading">
-        <h2>ATMOS Day 1 drafts</h2>
+        <h2>ATMOS event drafts</h2>
         <button type="button" class="close" aria-label="Close">×</button>
       </div>
       <p>
-        23 October 2026 · All times are IST. Import the draft file prepared from
-        your spreadsheets. Open an event, resolve any conflicting details,
-        choose its map pin, then publish.
+        All times are IST. Import the draft file prepared from your
+        spreadsheets. Open an event, resolve any conflicting details, choose its
+        map pin, then publish.
       </p>
       <label
         >Import event drafts (JSON)<input
@@ -407,6 +413,11 @@
         Check Manage all events before repeating a draft on another device.
         Online-only activities need no physical pin.
       </p>
+      <label
+        >Show date<select id="scheduleDraftDay">
+          <option value="">All dates</option>
+        </select></label
+      >
       <p id="scheduleDraftStatus" role="status"></p>
       <div id="scheduleDraftList"></div>
     </dialog>
@@ -663,6 +674,6 @@
     </dialog>
     <div id="toast" role="status"></div>
     <script src="public/vendor/maplibre-gl.js"></script>
-    <script type="module" src="src/app.js?labels=1"></script>
+    <script type="module" src="src/app.js?rooms=1"></script>
   </body>
 </html>

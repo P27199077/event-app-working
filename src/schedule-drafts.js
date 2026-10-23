@@ -1,11 +1,33 @@
 import { esc } from "./utils.js";
 import { parseIstInput } from "./event-clock.js";
 
+export function mergeDraftEvents(existing, incoming) {
+  const merged = new Map(existing.map((event) => [event.id, event]));
+  for (const event of incoming) merged.set(event.id, event);
+  if (merged.size > 200)
+    throw new Error("Keep at most 200 drafts in one browser batch.");
+  return [...merged.values()].sort(
+    (a, b) =>
+      draftDay(a).localeCompare(draftDay(b)) ||
+      (a.start || "99").localeCompare(b.start || "99") ||
+      a.title.localeCompare(b.title),
+  );
+}
+export function draftDay(event) {
+  return (
+    (event.start || event.bookings?.[0]?.start || "").slice(0, 10) ||
+    (/23 October 2026/.test(event.catalog_date)
+      ? "2026-10-23"
+      : "Needs date review")
+  );
+}
+
 export function createScheduleDrafts({ accountIdentity, storage, onOpen }) {
   const dialog = document.querySelector("#scheduleDraftDialog");
   const list = document.querySelector("#scheduleDraftList");
   const status = document.querySelector("#scheduleDraftStatus");
   const fileInput = document.querySelector("#scheduleDraftFile");
+  const dayChoice = document.querySelector("#scheduleDraftDay");
   let events = [],
     generation = 0;
   const key = (account) => `pinpoint-schedule-drafts-v1-${account}`;
@@ -30,9 +52,24 @@ export function createScheduleDrafts({ accountIdentity, storage, onOpen }) {
   function render(account) {
     if (accountIdentity() !== account) return;
     const saved = progress(account);
-    const remaining = events.filter((event) => !saved[event.id]?.published);
+    const choice = dayChoice.value;
+    const days = [...new Set(events.map(draftDay))].sort();
+    dayChoice.innerHTML =
+      '<option value="">All dates</option>' +
+      days
+        .map((day) => `<option value="${esc(day)}">${esc(day)}</option>`)
+        .join("");
+    if (days.includes(choice)) dayChoice.value = choice;
+    const remaining = events.filter(
+      (event) =>
+        !saved[event.id]?.published &&
+        (!dayChoice.value || draftDay(event) === dayChoice.value),
+    );
+    const totalRemaining = events.filter(
+      (event) => !saved[event.id]?.published,
+    ).length;
     status.textContent = events.length
-      ? `${remaining.length} remaining · ${events.length - remaining.length} published from this browser`
+      ? `${remaining.length} shown · ${totalRemaining} remaining across all dates · ${events.length - totalRemaining} published from this browser`
       : "Choose your event draft JSON file above. It stays in this browser until you publish an event.";
     list.innerHTML =
       remaining
@@ -40,7 +77,7 @@ export function createScheduleDrafts({ accountIdentity, storage, onOpen }) {
           const fields = saved[event.id]?.fields || event;
           const ended = fields.end && parseIstInput(fields.end) <= Date.now();
           return `<article class="review-request"><span class="tag">${esc(event.host)}</span><h3>${esc(event.title)}</h3>
-        <p>${esc(event.room || "Venue needs confirmation")}</p>
+        <p><b>${esc(draftDay(event))}</b> · ${esc(event.room || "Venue needs confirmation")}</p>
         <p><b>Event list:</b> ${esc(event.catalog_date)} · ${esc(event.catalog_time)}</p>
         ${event.bookings.map((b) => `<p><b>Room booking:</b> ${esc(b.room)} · ${esc(b.start.replace("T", " "))} – ${esc(b.end.replace("T", " "))} IST</p>`).join("")}
         <p>${esc(event.description || "Description missing in the event list.")}</p>
@@ -50,9 +87,11 @@ export function createScheduleDrafts({ accountIdentity, storage, onOpen }) {
         <button class="primary" data-schedule-draft="${esc(event.id)}">Review details & place pin →</button></article>`;
         })
         .join("") ||
-      (events.length
+      (events.length && !totalRemaining
         ? "<p>All drafts in this batch have been published from this browser.</p>"
-        : "");
+        : events.length
+          ? "<p>No remaining drafts for this date. Choose another date above.</p>"
+          : "");
     list.querySelectorAll("[data-schedule-draft]").forEach((button) => {
       button.onclick = () => {
         if (accountIdentity() !== account) return;
@@ -62,6 +101,10 @@ export function createScheduleDrafts({ accountIdentity, storage, onOpen }) {
       };
     });
   }
+  dayChoice.onchange = () => {
+    const account = accountIdentity();
+    if (account) render(account);
+  };
   function validateBatch(batch) {
     if (
       batch?.version !== 1 ||
@@ -129,8 +172,17 @@ export function createScheduleDrafts({ accountIdentity, storage, onOpen }) {
       const batch = JSON.parse(await file.text());
       const imported = validateBatch(batch);
       if (request !== generation || accountIdentity() !== account) return;
-      storage.setItem(batchKey(account), JSON.stringify(batch));
-      events = imported;
+      const savedBatch = JSON.parse(
+        storage?.getItem(batchKey(account)) || "null",
+      );
+      const existing = savedBatch ? validateBatch(savedBatch) : [];
+      const merged = mergeDraftEvents(existing, imported);
+      storage.setItem(
+        batchKey(account),
+        JSON.stringify({ ...batch, events: merged }),
+      );
+      events = merged;
+      dayChoice.value = "";
       render(account);
     } catch (error) {
       if (request === generation && accountIdentity() === account)
@@ -145,7 +197,7 @@ export function createScheduleDrafts({ accountIdentity, storage, onOpen }) {
       if (!account) return;
       ++generation;
       dialog.showModal();
-      status.textContent = "Loading Day 1 drafts…";
+      status.textContent = "Loading event drafts…";
       list.innerHTML = "";
       try {
         const savedBatch = storage?.getItem(batchKey(account));

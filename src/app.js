@@ -16,7 +16,8 @@ import {
   newTrackingToken,
 } from "./request-tracking.js?tracking=2";
 import { createEventManager } from "./event-management.js";
-import { createScheduleDrafts } from "./schedule-drafts.js";
+import { createScheduleDrafts } from "./schedule-drafts.js?batches=2";
+import { createPrivateRoomPins, classroomKey } from "./private-room-pins.js";
 import { createReviewQueue } from "./review-queue.js?requests=2";
 import { SHARED_EVENTS_ENABLED, PUBLIC_REQUESTS_ENABLED } from "./config.js";
 import {
@@ -61,6 +62,7 @@ if (SHARED_EVENTS_ENABLED) {
 let authUi, venueSetup, reviewQueue, eventManager, requestId, browserId;
 let editingEvent = null,
   scheduleDraft = null,
+  privateAutoRoom = null,
   requestToken;
 try {
   browserId = storage?.getItem("pinpoint-request-browser");
@@ -98,6 +100,46 @@ const scheduleDrafts = createScheduleDrafts({
   storage,
   onOpen: openScheduleDraft,
 });
+const privateRoomPins = createPrivateRoomPins({
+  accountIdentity: () => (organizer && currentUser ? currentUser.id : null),
+  storage,
+  fetchHistory: (account) => backend.fetchRoomHistory(account),
+  onChange: renderPrivateRoomOptions,
+});
+
+function renderPrivateRoomOptions() {
+  const pins = privateRoomPins.list();
+  $("#privateRoomNames").innerHTML = pins
+    .map((pin) => `<option value="${esc(pin.room)}"></option>`)
+    .join("");
+  $("#privateRoomNote").hidden = !organizer;
+  reusePrivateRoom();
+}
+function reusePrivateRoom() {
+  if (!organizer || !currentUser || editingEvent) return;
+  const form = $("#postForm"),
+    room = form.elements.room.value;
+  if (form.elements.room.readOnly || (draftPoint && !privateAutoRoom)) return;
+  const found = privateRoomPins.find(room);
+  if (found) {
+    draftPoint = [...found.coords];
+    privateAutoRoom = classroomKey(room);
+    form.elements.venue.value = "";
+    form.elements.area.value = found.area;
+    if (!form.elements.area.value) form.elements.area.value = "Custom pin";
+    $("#locationStatus").textContent =
+      `✓ Your previously used ${found.room} pin selected. You can move it on the map.`;
+    rememberScheduleDraft();
+  } else if (privateAutoRoom) {
+    privateAutoRoom = null;
+    draftPoint = null;
+    $("#locationStatus").textContent =
+      "No saved pin for this classroom. Pick its map location.";
+    rememberScheduleDraft();
+  }
+}
+$("#postForm").elements.room.addEventListener("input", reusePrivateRoom);
+$("#postForm").elements.room.addEventListener("change", reusePrivateRoom);
 
 let filter = "All",
   scheduleEvents = [],
@@ -472,10 +514,11 @@ function openScheduleDraft(event, saved, accountId) {
     `<p><b>Event list:</b> ${esc(event.catalog_date)} · ${esc(event.catalog_time)}</p>
     ${event.bookings.map((b) => `<p><b>Room booking:</b> ${esc(b.room)} · ${esc(b.start.replace("T", " "))} – ${esc(b.end.replace("T", " "))} IST</p>`).join("")}
     ${event.issues.map((issue) => `<p class="draft-issue">${esc(issue)}</p>`).join("")}
-    <p class="footnote">Confirm conflicting hours below. They are left blank until you decide.</p>`;
+    <p class="footnote">${event.timing_policy === "room_booking" ? "Room-booking times are filled below. Check the flagged differences before approval." : "Confirm conflicting hours below. Unresolved times are left blank until you decide."}</p>`;
   $("#scheduleConfirmLabel").hidden = false;
   $("#scheduleConfirmed").required = true;
   updatePostCopy();
+  reusePrivateRoom();
   $("#postDialog").showModal();
 }
 function rememberScheduleDraft() {
@@ -517,6 +560,7 @@ function openEventEditor(event) {
 function resetDraft() {
   editingEvent = null;
   scheduleDraft = null;
+  privateAutoRoom = null;
   $("#scheduleSourceNotes").hidden = true;
   $("#scheduleSourceNotes").innerHTML = "";
   $("#scheduleConfirmLabel").hidden = true;
@@ -582,6 +626,7 @@ $("#postForm").elements.venue.onchange = (event) => {
   const venue = savedVenue(event.target.value),
     form = $("#postForm");
   draftPoint = null;
+  privateAutoRoom = null;
   form.elements.room.readOnly = Boolean(venue);
   if (venue) {
     form.elements.area.value = venue.area;
@@ -595,11 +640,13 @@ $("#postForm").elements.venue.onchange = (event) => {
     $("#locationStatus").textContent =
       "Enter the classroom / landmark and choose an area or exact map point.";
   }
+  rememberScheduleDraft();
 };
 $("#postForm").elements.area.onchange = (e) => {
   $("#postForm").elements.venue.value = "";
   $("#postForm").elements.room.readOnly = false;
   draftPoint = null;
+  privateAutoRoom = null;
   $("#locationStatus").textContent =
     e.target.value === "Custom pin"
       ? "Pick a point on the map before posting."
@@ -684,6 +731,7 @@ $("#postForm").onsubmit = async (e) => {
           account,
         );
         if (!owner || currentUser?.id !== account) return;
+        privateRoomPins.remember(item, account);
         $("#postDialog").close();
         resetDraft();
         selected = null;
@@ -692,11 +740,13 @@ $("#postForm").onsubmit = async (e) => {
         eventManager?.open();
         return;
       } else if (organizer) {
+        const postingAccount = currentUser.id;
         const imported = scheduleDraft && {
           id: scheduleDraft.id,
           account: scheduleDraft.accountId,
         };
-        item = await backend.createEvent(item, currentUser.id);
+        item = await backend.createEvent(item, postingAccount);
+        privateRoomPins.remember(item, postingAccount);
         if (imported)
           scheduleDrafts.published(imported.id, imported.account, item.id);
       } else {
@@ -791,6 +841,7 @@ map = createCampusMap({
       return;
     }
     draftPoint = point;
+    privateAutoRoom = null;
     rememberScheduleDraft();
     stopPicking();
     if (!savedVenue($("#postForm").elements.venue.value))
@@ -915,6 +966,7 @@ async function updateAccount(session) {
   currentUser = session?.user || null;
   organizer = false;
   owner = false;
+  privateRoomPins.clear();
   scheduleDrafts.clear();
   $("#scheduleDrafts").hidden = true;
   eventManager?.clear();
@@ -970,6 +1022,7 @@ async function updateAccount(session) {
   $("#setPassword").hidden = !organizer;
   $("#manageEvents").hidden = !owner;
   $("#reviewReports").hidden = !owner;
+  if (organizer) privateRoomPins.load(currentUser.id);
   updatePostCopy();
   await syncSharedEvents();
 }
@@ -984,7 +1037,7 @@ async function initializeSharedEvents() {
   $("#aboutStorage").textContent =
     "Events are shared across devices. Anyone can submit a request. Reviewers approve or reject requests before they appear publicly. Your Interested shortlist stays in this browser. Event reports go privately to the owner for review.";
   try {
-    backend = await import("./data/shared-events.js?upcoming=1");
+    backend = await import("./data/shared-events.js?rooms=1");
     eventManager = createEventManager({
       backend,
       ownerIdentity: () => (owner && currentUser ? currentUser.id : null),
