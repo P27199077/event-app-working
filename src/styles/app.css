@@ -2041,6 +2041,23 @@ form input:read-only {
 .draft-issue {
   font-weight: 600;
 }
+#upcomingSection {
+  margin-top: 28px;
+  border-top: 1px solid currentColor;
+  padding-top: 10px;
+}
+#upcomingEvents {
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+#upcomingEvents .schedule-day {
+  font-size: 14px;
+  margin: 18px 0 10px;
+}
+#upcomingEvents .event p {
+  line-height: 1.5;
+}
 
 /* Private owner workspace. */
 #manageDialog {

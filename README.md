@@ -56,7 +56,7 @@ MapLibre GL JS and its license are bundled in `public/vendor/`; font attribution
 
 ## Live events and interest
 
-Explore and Interested show only events where the start time has arrived and the end time has not. My events also includes the current browser’s upcoming posts. Interest is private to this browser; no student login is required. Event boundaries refresh automatically, including when returning to the tab. The internal `rsvps` array is retained for compatibility with existing saved selections.
+Explore and Interested include live events and events starting within 15 minutes. Pins disappear at the end time; upcoming events say “Starts in…”. My events also includes the organizer’s upcoming posts, while map pins still follow the 15-minute window. The Upcoming events list shows approved future events in IST date/start order and lets visitors preview an event at its start time. Interest is private to this browser; no student login is required. Event boundaries refresh automatically, including when returning to the tab. Existing interest and organizer draft storage keys are retained.
 
 ## Prepared shared backend
 
@@ -108,8 +108,10 @@ Push changes to the connected production branch (`main`) to redeploy automatical
 
 ## Browse events at a chosen time
 
-The map opens in live mode on every page load. Its **Now** control opens a date/time chooser. A selected time uses IST, keeps the preview fixed while the real clock moves, and shows only approved events with `start <= selected time < end`. **Back to live now** restores the moving current-time feed. Search, categories, Interested and map groups use the selected time too; My events includes upcoming own events only in live mode.
+The map opens in live mode on every page load. Its **Now** control opens a date/time chooser. A selected time uses IST, keeps the preview fixed while the real clock moves, and shows approved pins with `start <= selected time + 15 minutes` and `end > selected time`. The Happening now filter continues to restrict results to events actually underway. **Back to live now** restores the moving current-time feed. The Upcoming events list always follows the real current time.
 
 `supabase/event-time-view.sql` adds a paginated read-only function for approved events active at the chosen instant. The existing direct table policy is unchanged. Cancelled events and private requests are excluded; creator IDs are returned only to the matching signed-in user. The user confirmed application on 22 October 2026; live anonymous chosen-time reads returned 200 and invalid input was rejected.
 
 Event creation and editing now explicitly interpret inputs as IST on every device. Schedule entries can be entered before the fest and remain editable in owner management. No event dates are baked into application code. Run `npm run test:time-db` for the real SQL boundary and permission scenarios.
+
+Apply `supabase/upcoming-events.sql` for the public approved schedule and early pins. It adds a bounded, read-only `event_schedule` function with creator IDs omitted except for the matching account. It preserves all event/request/report data and all browser draft progress. Until applied, the app falls back to existing live/chosen-time reads and displays a setup message; upcoming/early visibility is incomplete. The migration is not applied automatically by a Vercel deployment.

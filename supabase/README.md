@@ -66,7 +66,7 @@ Tracking uses 32 random bytes rendered as hex, carried in a URL fragment. Postgr
 
 After applying, verify against the live database:
 
-- Anonymous and non-owner accounts cannot invoke owner edits/status changes or read another reviewer's upcoming/cancelled events.
+- Anonymous and non-owner accounts cannot invoke owner edits/status changes or read cancelled events. The schedule RPC intentionally exposes approved upcoming event details; other organizers' IDs and private requests remain hidden.
 - Both intended owner accounts can edit an event created by the other, preserving ID/creator/status and interest selections.
 - Invalid locations/times and overlapping duplicates are rejected on edit or restore. Older revisions return a conflict after a newer edit or cancellation.
 - A new anonymous submission has a private link that works on another browser. An incorrect token or UUID does not reveal its title or status.
@@ -90,3 +90,7 @@ Review actions resolve or dismiss reports without changing the event, or cancel 
 The user confirmed `event-time-view.sql` applied successfully on 22 October 2026. A live anonymous future-time request succeeded, and null viewing time was rejected with `22023`. The function returns approved events active at the selected instant, including future or past scheduled times, without changing direct table RLS or exposing private request records. Pagination is bounded to 500 per call. Other organizers' IDs are omitted. Live mode retains the existing feed.
 
 Local PostgreSQL tests cover overlapping events, inclusive starts/exclusive ends, pagination, equivalent timezone representations, invalid input, hidden cancelled events, private request-table denial and blocked direct writes. These do not replace testing a real populated fest schedule.
+
+## Upcoming schedule and 15-minute early pins (application pending)
+
+Run `upcoming-events.sql` once in SQL Editor. It only creates/replaces a read function and its execute grants. It does not update or delete events, pins, requests, reports or browser drafts. Running it again preserves the same data. `event_schedule(from_time,page_size,page_offset)` returns published, non-ended events ordered by start then ID, with at most 500 per page. It rejects non-finite times, invalid page sizes and negative offsets. Other organizers' IDs are omitted. The direct table policy remains unchanged, and private requests stay inaccessible. The app filters map pins to 15 minutes before start through the end; the Upcoming list keeps all future approved events.

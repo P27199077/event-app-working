@@ -6,7 +6,7 @@
     <title>PinPoint — BITS Hyderabad</title>
     <script src="src/theme-init.js"></script>
     <link rel="stylesheet" href="public/vendor/maplibre-gl.css" />
-    <link rel="stylesheet" href="src/styles/app.css?drafts=1" />
+    <link rel="stylesheet" href="src/styles/app.css?upcoming=1" />
     <link rel="stylesheet" href="src/styles/themes.css?features=3" />
   </head>
   <body>
@@ -109,6 +109,23 @@
           Sample events · RNT + Lover’s Lane campus view<br />Posts on this
           prototype stay in this browser.
         </p>
+        <section id="upcomingSection" aria-labelledby="upcomingHeading">
+          <div class="list-heading">
+            <h2 id="upcomingHeading">Upcoming events</h2>
+            <span id="upcomingCount"></span>
+          </div>
+          <p class="footnote">
+            Date and time order · IST. Tap an event to preview its time on the
+            map.
+          </p>
+          <p id="scheduleStatus" role="status"></p>
+          <div
+            id="upcomingEvents"
+            role="region"
+            aria-label="Upcoming events by date"
+            tabindex="0"
+          ></div>
+        </section>
         <button class="text-button" id="about">How this idea works ↗</button>
       </section>
       <section class="map" aria-label="Top-down campus event map">
@@ -646,6 +663,6 @@
     </dialog>
     <div id="toast" role="status"></div>
     <script src="public/vendor/maplibre-gl.js"></script>
-    <script type="module" src="src/app.js?drafts=1"></script>
+    <script type="module" src="src/app.js?upcoming=1"></script>
   </body>
 </html>

@@ -34,7 +34,7 @@ test("invalid and partial stored data recover without losing valid user posts", 
   assert.deepEqual(restored, state);
 });
 
-test("public and Interested views show live events; My events includes upcoming own posts", async () => {
+test("public and Interested views include the 15-minute arrival window; My events includes upcoming own posts", async () => {
   const { visibleAtTime } = await import("../../src/data/event-visibility.js");
   const now = Date.parse("2026-10-22T10:00:00Z");
   const event = {
@@ -43,7 +43,8 @@ test("public and Interested views show live events; My events includes upcoming 
     mine: true,
   };
   for (const view of ["Explore", "Interested"]) {
-    assert.equal(visibleAtTime(event, view, now - 1), false);
+    assert.equal(visibleAtTime(event, view, now - 15 * 60000 - 1), false);
+    assert.equal(visibleAtTime(event, view, now - 15 * 60000), true);
     assert.equal(visibleAtTime(event, view, now), true);
     assert.equal(visibleAtTime(event, view, now + 3600000), false);
   }

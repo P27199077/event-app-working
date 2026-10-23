@@ -53,5 +53,13 @@ test("owner search includes venue and host and does not depend on original creat
     "upcoming",
   );
   assert.equal(filterManagedEvents(events, "all", "auditorium", now).length, 0);
-  assert.equal(visibleAtTime(events[1], "Explore", now), false);
+  assert.equal(visibleAtTime(events[1], "Explore", now), true);
+  assert.equal(
+    visibleAtTime(
+      { ...events[1], start: new Date(now + 16 * 60000).toISOString() },
+      "Explore",
+      now,
+    ),
+    false,
+  );
 });

@@ -32,6 +32,12 @@ test("selected-time SQL exposes only approved active events and keeps public tab
   );
   await db.exec(sql);
   await db.exec(sql); // Running the upgrade again preserves data and permissions.
+  const scheduleSql = await readFile(
+    new URL("../../supabase/upcoming-events.sql", import.meta.url),
+    "utf8",
+  );
+  await db.exec(scheduleSql);
+  await db.exec(scheduleSql);
   await db.exec("set role anon");
   const query = (at, size = 500, offset = 0) =>
     db.query("select * from public.events_at_time($1,$2,$3)", [
@@ -39,6 +45,63 @@ test("selected-time SQL exposes only approved active events and keeps public tab
       size,
       offset,
     ]);
+  await t.test(
+    "upcoming schedule exposes approved future events, preserves data and enforces privacy and paging",
+    async () => {
+      const schedule = (at, size = 500, offset = 0) =>
+        db.query("select * from public.event_schedule($1,$2,$3)", [
+          at,
+          size,
+          offset,
+        ]);
+      const { rows } = await schedule("2029-12-31T23:00:00+05:30");
+      assert.deepEqual(
+        rows.map((e) => e.title),
+        ["First event", "Second event"],
+      );
+      assert.ok(rows.every((e) => e.organizer_id === null));
+      assert.deepEqual(
+        (await schedule("2029-12-31T23:00:00+05:30", 1, 1)).rows.map(
+          (e) => e.title,
+        ),
+        ["Second event"],
+      );
+      assert.deepEqual(
+        (await schedule("2030-01-01T11:00:00+05:30")).rows.map((e) => e.title),
+        ["Second event"],
+      );
+      for (const args of [
+        [null],
+        ["infinity"],
+        ["2030-01-01", 501],
+        ["2030-01-01", 0],
+        ["2030-01-01", 500, -1],
+      ])
+        await assert.rejects(
+          schedule(...args),
+          (error) => error.code === "22023",
+        );
+      assert.equal(
+        (await db.query("select * from public.events")).rows.length,
+        0,
+      );
+      await assert.rejects(
+        db.query("select * from public.event_requests"),
+        (e) => e.code === "42501",
+      );
+      await db.exec("reset role");
+      assert.equal(
+        (await db.query("select count(*)::int n from public.events")).rows[0].n,
+        3,
+      );
+      assert.equal(
+        (await db.query("select count(*)::int n from public.event_requests"))
+          .rows[0].n,
+        1,
+      );
+      await db.exec("set role anon");
+    },
+  );
   await t.test(
     "returns both overlapping events, with organizer IDs omitted for visitors",
     async () => {

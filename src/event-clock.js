@@ -63,6 +63,10 @@ export function createEventClock({ onChange }) {
     value: () => selectedTime,
     now: () => selectedTime ?? Date.now(),
     isPreview: () => selectedTime !== null,
+    showAt(instant) {
+      const value = Number(instant);
+      if (Number.isFinite(value)) select(value);
+    },
     update,
   };
 }

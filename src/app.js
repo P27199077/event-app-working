@@ -19,7 +19,12 @@ import { createEventManager } from "./event-management.js";
 import { createScheduleDrafts } from "./schedule-drafts.js";
 import { createReviewQueue } from "./review-queue.js?requests=2";
 import { SHARED_EVENTS_ENABLED, PUBLIC_REQUESTS_ENABLED } from "./config.js";
-import { visibleAtTime } from "./data/event-visibility.js";
+import {
+  visibleAtTime,
+  pinVisibleAt,
+  upcomingEvents,
+  PIN_LEAD_MS,
+} from "./data/event-visibility.js";
 import { areas } from "./data/campus.js";
 import { H } from "./data/events.js";
 import { loadState, persistState } from "./data/storage.js";
@@ -95,6 +100,8 @@ const scheduleDrafts = createScheduleDrafts({
 });
 
 let filter = "All",
+  scheduleEvents = [],
+  pendingScheduleSelection = null,
   view = "Explore",
   selected = null,
   selectedGroup = null,
@@ -116,7 +123,11 @@ const eventClock = createEventClock({
   },
 });
 const eventTiming = (event) =>
-  eventClock.isPreview() ? `Ends ${date(event.end)} IST` : countdown(event);
+  eventClock.isPreview()
+    ? Date.parse(event.start) > eventClock.now()
+      ? `Starts ${date(event.start)} IST`
+      : `Ends ${date(event.end)} IST`
+    : countdown(event);
 function toast(s, duration = 4000) {
   $("#toast").textContent = s;
   $("#toast").style.display = "block";
@@ -142,7 +153,7 @@ function shownEvents() {
       inside(e.coords) &&
       (e.category !== "Empty classroom" || showEmptyClassrooms) &&
       (eventClock.isPreview()
-        ? activeAt(e, eventClock.now()) && (view !== "Mine" || e.mine)
+        ? pinVisibleAt(e, eventClock.now()) && (view !== "Mine" || e.mine)
         : visibleAtTime(e, view)) &&
       (view !== "Interested" || state.rsvps.includes(e.id)) &&
       (filter === "All" ||
@@ -176,12 +187,66 @@ function selectEvent(id) {
       $("#campusMap").scrollIntoView({ behavior: "smooth", block: "center" });
   }
 }
+function renderUpcoming() {
+  const query = $("#search").value.toLowerCase();
+  const events = upcomingEvents(
+    SHARED_EVENTS_ENABLED ? scheduleEvents : state.events,
+  ).filter(
+    (event) =>
+      inside(event.coords) &&
+      (event.category !== "Empty classroom" || showEmptyClassrooms) &&
+      (["All", "Now"].includes(filter) || event.category === filter) &&
+      [event.title, event.host, event.area, event.room]
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
+  );
+  $("#upcomingCount").textContent =
+    `${events.length} ${events.length === 1 ? "event" : "events"}`;
+  let lastDay = "";
+  $("#upcomingEvents").innerHTML =
+    events
+      .map((event) => {
+        const day = istInput(Date.parse(event.start)).slice(0, 10);
+        const heading =
+          day !== lastDay
+            ? `<h3 class="schedule-day">${esc(new Date(event.start).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "long" }))}</h3>`
+            : "";
+        lastDay = day;
+        return `${heading}<button class="event" data-category="${esc(event.category)}" data-preview-event="${esc(event.id)}"><div class="event-top"><span class="tag">${esc(event.category)}</span><span>${esc(countdown(event))}</span></div><h3>${esc(event.title)}<span class="event-arrow" aria-hidden="true">↗</span></h3><p>${esc(date(event.start))} – ${esc(date(event.end))} IST</p><p class="event-location">⌖ ${esc(locationLabel(event))}</p><p class="host">By ${esc(event.host)}</p></button>`;
+      })
+      .join("") ||
+    '<p class="empty">No upcoming events match right now. New approved events will appear here.</p>';
+  $("#upcomingEvents")
+    .querySelectorAll("[data-preview-event]")
+    .forEach((button) => {
+      button.onclick = () => {
+        const event = events.find(
+          (item) => String(item.id) === button.dataset.previewEvent,
+        );
+        const instant = Date.parse(event.start);
+        if (
+          eventClock.value() === instant &&
+          state.events.some((item) => item.id === event.id)
+        ) {
+          selectEvent(event.id);
+        } else {
+          pendingScheduleSelection = { id: event.id, time: instant };
+          eventClock.showAt(instant);
+        }
+      };
+    });
+}
 function render() {
   // Refresh at event boundaries, including when an open event ends.
   clearTimeout(render.timer);
   const now = Date.now();
   const boundaries = state.events
-    .flatMap((e) => [Date.parse(e.start), Date.parse(e.end)])
+    .flatMap((e) => [
+      Date.parse(e.start) - PIN_LEAD_MS,
+      Date.parse(e.start),
+      Date.parse(e.end),
+    ])
     .filter((t) => t > now);
   render.timer = setTimeout(
     render,
@@ -195,7 +260,8 @@ function render() {
   if (SHARED_EVENTS_ENABLED)
     $("#feedNote").textContent = preview
       ? `Events at ${date(eventClock.now())} IST · Your interest stays in this browser.`
-      : "Live campus events · Your interest stays in this browser.";
+      : "Pins appear 15 minutes before the start and stay until the event ends.";
+  renderUpcoming();
   let shown = shownEvents();
   $("#count").textContent =
     shown.length + " " + (shown.length === 1 ? "event" : "events");
@@ -206,7 +272,7 @@ function render() {
         ? "Events you’re interested in"
         : preview
           ? `Events at ${date(eventClock.now())} IST`
-          : "Happening now on campus";
+          : "Live & starting soon";
   $("#events").innerHTML = shown.length
     ? shown
         .map(
@@ -217,18 +283,22 @@ function render() {
     : `<p class="empty">${view === "Mine" ? (SHARED_EVENTS_ENABLED && !currentUser ? "Organizers: sign in to see and manage your events." : "Your posted events will appear here.") : view === "Interested" ? (preview ? "No interested events at the chosen time. Explore the map to find events." : "See something you’d like to join? Tap “I’m interested” on a live event.") : preview ? "No events match this time. Choose another time or filter." : "No live events match right now. Try another filter or check back soon."}</p>`;
   let pinGroups = [];
   if (map) {
-    const result = renderEventPins(map, shown, {
-      previous: markers,
-      selected,
-      selectedGroup,
-      onSelect: selectEvent,
-      onGroup(group) {
-        selected = null;
-        selectedGroup = group.key;
-        render();
-        map.easeTo({ center: group.coords, duration: 400 });
+    const result = renderEventPins(
+      map,
+      shown.filter((event) => pinVisibleAt(event, eventClock.now())),
+      {
+        previous: markers,
+        selected,
+        selectedGroup,
+        onSelect: selectEvent,
+        onGroup(group) {
+          selected = null;
+          selectedGroup = group.key;
+          render();
+          map.easeTo({ center: group.coords, duration: 400 });
+        },
       },
-    });
+    );
     markers = result.markers;
     pinGroups = result.groups;
   }
@@ -244,7 +314,7 @@ function render() {
       <div><dt>Hosted by</dt><dd>${esc(e.host)}</dd></div></dl>
       <p>${esc(e.description)}</p>
       ${safeLink(e.link) ? `<a class="event-link" href="${esc(safeLink(e.link))}" target="_blank" rel="noopener noreferrer">Event / registration link ↗</a>` : ""}
-      <div class="detail-actions">${Date.parse(e.end) > Date.now() && (preview || ongoing(e)) ? `<button class="primary" id="interest" aria-pressed="${state.rsvps.includes(e.id)}">${state.rsvps.includes(e.id) ? "✓ Interested · Remove" : "I’m interested"}</button>` : ""}
+      <div class="detail-actions">${Date.parse(e.end) > Date.now() && (preview || pinVisibleAt(e)) ? `<button class="primary" id="interest" aria-pressed="${state.rsvps.includes(e.id)}">${state.rsvps.includes(e.id) ? "✓ Interested · Remove" : "I’m interested"}</button>` : ""}
       ${owner ? '<button class="text-button" id="editEvent">Edit event</button>' : ""}
       ${e.mine ? '<button class="text-button" id="cancelEvent">Cancel event</button>' : owner ? '<button class="text-button" id="openManagement">Manage event</button>' : ongoing(e) ? '<button class="text-button" id="reportEvent">Report event</button>' : ""}</div>
       <p class="footnote">${preview ? `Viewing events at ${esc(date(eventClock.now()))} IST. Interest stays on this device.` : ongoing(e) ? "Interest stays on this device. Follow the event link for registration, if required." : "Scheduled event · Choose its time to preview it on the map."}</p>`
@@ -775,19 +845,54 @@ async function syncSharedEvents() {
     eventClock.value() === requestedTime &&
     syncGeneration === generation;
   try {
-    const events =
-      requestedTime === null
-        ? await backend.fetchEvents(requestedUser)
-        : await backend.fetchEventsAtTime(
-            new Date(requestedTime).toISOString(),
+    let events,
+      schedule,
+      needsScheduleUpgrade = false;
+    try {
+      if (requestedTime === null)
+        events = schedule = await backend.fetchSchedule(requestedUser);
+      else
+        [events, schedule] = await Promise.all([
+          backend.fetchSchedule(
             requestedUser,
-          );
+            new Date(requestedTime).toISOString(),
+          ),
+          backend.fetchSchedule(requestedUser),
+        ]);
+    } catch (error) {
+      if (!["PGRST202", "42883"].includes(error?.code)) throw error;
+      needsScheduleUpgrade = true;
+      events =
+        requestedTime === null
+          ? await backend.fetchEvents(requestedUser)
+          : await backend.fetchEventsAtTime(
+              new Date(requestedTime).toISOString(),
+              requestedUser,
+            );
+    }
     if (!stillCurrent()) {
       syncRequested = true;
       return;
     }
     state.events = events;
+    if (schedule) scheduleEvents = schedule;
+    $("#scheduleStatus").textContent = needsScheduleUpgrade
+      ? "Upcoming events and early pins need the upcoming-events database update. Current events remain available."
+      : "";
     $("#connectionStatus").textContent = "";
+    if (
+      pendingScheduleSelection &&
+      pendingScheduleSelection.time !== requestedTime
+    )
+      pendingScheduleSelection = null;
+    if (
+      pendingScheduleSelection &&
+      state.events.some((event) => event.id === pendingScheduleSelection.id)
+    ) {
+      const id = pendingScheduleSelection.id;
+      pendingScheduleSelection = null;
+      selectEvent(id);
+    }
     render();
   } catch (error) {
     if (stillCurrent())
@@ -806,6 +911,7 @@ async function syncSharedEvents() {
 }
 
 async function updateAccount(session) {
+  pendingScheduleSelection = null;
   currentUser = session?.user || null;
   organizer = false;
   owner = false;
@@ -831,6 +937,7 @@ async function updateAccount(session) {
   $("#setPassword").hidden = true;
   // Clear previous account ownership immediately before any network request.
   state.events = state.events.map((event) => ({ ...event, mine: false }));
+  scheduleEvents = scheduleEvents.map((event) => ({ ...event, mine: false }));
   render();
   const userAtStart = currentUser?.id;
   if (currentUser) {
@@ -877,7 +984,7 @@ async function initializeSharedEvents() {
   $("#aboutStorage").textContent =
     "Events are shared across devices. Anyone can submit a request. Reviewers approve or reject requests before they appear publicly. Your Interested shortlist stays in this browser. Event reports go privately to the owner for review.";
   try {
-    backend = await import("./data/shared-events.js?time=6");
+    backend = await import("./data/shared-events.js?upcoming=1");
     eventManager = createEventManager({
       backend,
       ownerIdentity: () => (owner && currentUser ? currentUser.id : null),
