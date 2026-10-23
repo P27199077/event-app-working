@@ -50,6 +50,8 @@ Classroom pins start hidden on each page load. Use the map-key switch or classro
 
 ## Map data and dependencies
 
+At zoom level 18 and above, individual event pins show compact name, room and IST time labels. Labels try alternate positions to avoid other labels, pins, controls and viewport edges. Crowded labels are suppressed until space is available; individual pins also expose their label on hover or keyboard focus. Screen-reader names include the same details. Label layout only changes screen positions, never saved coordinates. Map movement and resizing recalculate placement for phone and desktop layouts.
+
 Campus basemap data is derived from [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) under ODbL 1.0. Boundary geometry is maintained once in `src/data/campus-boundary.js`. Original road and boundary references remain in `reference/`.
 
 MapLibre GL JS and its license are bundled in `public/vendor/`; font attribution is in `public/fonts/NOTICE.txt`. Optional satellite imagery uses Esri World Imagery and requires internet access. Application code does not require a package download to run. npm dependencies are development tools only.

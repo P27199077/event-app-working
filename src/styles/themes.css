@@ -1,6 +1,13 @@
 :root {
   color-scheme: light;
 }
+[data-theme="dark"] .geo-pin .pin-label {
+  background: #3c3544;
+  border-color: #817087;
+  border-left-color: var(--event-colour);
+  color: #f4eade;
+  box-shadow: 0 2px 6px #17121d33;
+}
 #themeToggle {
   flex-shrink: 0;
   padding: 9px 12px;

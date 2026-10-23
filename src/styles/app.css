@@ -1884,6 +1884,49 @@ dialog {
     700 11px/16px Arial,
     sans-serif;
 }
+.geo-pin .pin-label {
+  position: absolute;
+  display: none;
+  box-sizing: border-box;
+  left: 39px;
+  top: -8px;
+  width: 176px;
+  height: 64px;
+  padding: 7px 9px;
+  border: 1px solid #c9b59f;
+  border-left: 3px solid var(--event-colour);
+  border-radius: 8px;
+  background: #fff9ef;
+  color: #493d35;
+  text-align: left;
+  font:
+    11px/16px Arial,
+    sans-serif;
+  box-shadow: 0 2px 6px #3e30231a;
+  pointer-events: none;
+}
+.geo-pin.has-pin-label .pin-label,
+.geo-pin:hover .pin-label,
+.geo-pin:focus-visible .pin-label {
+  display: block;
+}
+.pin-label span {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pin-label-title {
+  font-weight: 700;
+}
+.pin-label-room,
+.pin-label-time {
+  font-size: 10px;
+}
+.geo-pin:hover,
+.geo-pin:focus-visible {
+  z-index: 4;
+}
 .venue-event-choice {
   width: 100%;
   display: grid;

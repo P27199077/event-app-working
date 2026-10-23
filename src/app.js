@@ -8,7 +8,7 @@ import { createEventReporting } from "./event-reports.js";
 import { initializeThemeToggle } from "./theme.js";
 import { createOrganizerAuth } from "./organizer-auth.js";
 import { createVenueSetup } from "./venue-setup.js?places=2";
-import { renderEventPins } from "./map/event-pins.js";
+import { renderEventPins } from "./map/event-pins.js?labels=1";
 import { countdown, locationLabel } from "./event-presentation.js";
 import { SAVED_VENUES, savedVenue } from "./data/venues.js";
 import {
@@ -814,7 +814,7 @@ venueSetup = createVenueSetup({
   },
 });
 $("#venueSetup").onclick = () => venueSetup.open();
-map?.on("zoomend", render);
+map?.on("moveend", render);
 map?.on("resize", render);
 
 document.addEventListener("visibilitychange", () => {
