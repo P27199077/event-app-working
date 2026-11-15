@@ -1,123 +1,103 @@
 # PinPoint
 
-A zoomable campus event map prototype for BITS Hyderabad. Includes event posting, category filters, a local Interested shortlist, reporting, street/satellite views, and an optional classroom layer.
+**Campus event discovery and navigation for BITS Hyderabad.**
+
+[Live app](https://pinpoint-nu-three.vercel.app/)
+
+I built PinPoint independently and released it before ATMOS. Attendees used the map to find and navigate to events throughout the day. The longer-term goal is a shared campus event map that remains useful beyond the fest.
+
+## Why I built it
+
+Knowing an event exists is only part of the problem: students also need to know where it is and whether it is happening now. PinPoint brings venue details, event times, and discovery into one campus map.
+
+Public submissions go through an approval queue. I chose this workflow to limit spam while allowing students to suggest events; submitting a request does not publish a pin immediately.
+
+## Features
+
+- Zoomable campus map with category filters, venue details, and street/satellite views.
+- Time-aware pins: events become visible 15 minutes before their start and disappear when they end.
+- A chosen-time view for previewing events, alongside the live view.
+- Public event requests with reviewer approval or rejection.
+- Owner event editing, cancellation, restoration, and revision checks.
+- An Interested shortlist saved privately in the current browser.
+- Light/dark themes and an optional user-reported empty-classroom layer.
+
+Event reporting and the complete upcoming-event schedule have corresponding SQL migrations. Their availability on a deployment depends on those migrations being applied.
+
+## Stack and architecture
+
+| Layer | Implementation |
+| --- | --- |
+| Interface | HTML, CSS, JavaScript modules |
+| Map | MapLibre GL JS; campus geometry derived from OpenStreetMap |
+| Shared data | Supabase PostgreSQL and database functions |
+| Organizer sign-in | Supabase Auth |
+| Browser state | Interest selections, theme preferences, drafts, and recent request links |
+| Hosting | Static frontend on Vercel |
+
+Visitors can browse without an account. Published events and submission requests use the shared backend; organizer/reviewer permissions are enforced by database rules. Owner edits include revision checks to detect stale updates.
+
+The request-status flow uses a private tracking link. Treat that link as access to the request's status; do not post it publicly.
 
 ## Run locally
 
-Requires Python 3. From this repository:
+Requires Git, Python 3, and a WebGL-capable browser.
 
 ```sh
+git clone https://github.com/P27199077/event-app-working.git
+cd event-app-working
 python3 -m http.server 3017 --bind 127.0.0.1
 ```
 
-Open http://127.0.0.1:3017 in a WebGL-capable browser. There is no build step. With Node.js installed, `npm start` runs the same server.
+Open **http://127.0.0.1:3017/**. Runtime libraries are bundled, so serving the existing frontend does not require an npm install.
 
-## Structure
+**The checked-in configuration points to the existing shared backend.** Use a separate Supabase project and update `src/config.js` before testing writes. Starting a local web server does not create an isolated database.
 
-- `index.html`: page markup and dialogs.
-- `src/app.js`: event rendering, UI state, and form interactions.
-- `src/data/`: campus geometry, sample events, and browser persistence/migrations.
-- `src/map/`: map initialization and basemap styling.
-- `src/utils.js`: coordinates, dates, escaping, and link validation.
-- `src/styles/app.css`: consolidated application styles, in cascade order.
-- `public/`: runtime map data, bundled MapLibre, and font assets.
-- `reference/`: original map references retained for future campus-map edits; not loaded by the app.
-- `tests/`: unit checks and a browser interaction regression test.
-
-Source files are served directly. The former `dist/` folder was the only source, not generated output. It has been replaced with the folders above. Keep the repository root as the server/hosting directory so asset paths resolve.
+For a separate backend, follow [shared-event setup](supabase/README.md). Configure its schema, approved organizer accounts, and Auth redirect URLs. Never place a service-role key in frontend code.
 
 ## Development checks
 
-Requires Node.js and npm:
+Install Node.js and npm, then:
 
 ```sh
 npm ci
 npm test
 npm run format:check
 npm run test:reports-db
+npm run test:time-db
 npm run test:browser
 ```
 
-Browser tests default to Google Chrome at its standard macOS path. Set `CHROME_PATH` to a compatible Chromium executable on another system. Tests start their own server on port 3017; stop an existing preview first.
+- Unit tests exercise event records, visibility, map labels, requests, and owner-management helpers.
+- Database tests exercise SQL behavior through PGlite.
+- Browser tests use the executable configured in `playwright.config.js`; set `CHROME_PATH` if needed. They start a server on port 3017.
 
-The automated browser runner could not launch Chrome in the restricted development environment. The app was opened separately in the in-app browser and its map and six sample pins loaded. Full interaction and visual regression checks remain pending; see `CLEANUP.md` for details.
+Test commands are provided for reproducibility; their presence does not certify the deployed backend. Previously recorded authenticated, multi-session, and full browser checks remain incomplete. See [operational notes](docs/OPERATIONS.md) for feature-specific details.
 
-## Prototype limits
+## Repository map
 
-Published events and event requests use Supabase. Interest selections and recent private request links remain in browser storage. Shared reporting is implemented and requires the new `supabase/event-reports.sql` migration before use. Old local-only reports are not uploaded automatically. Changing host or port uses separate browser storage.
+- `index.html`: application markup and dialogs.
+- `src/app.js`: interface orchestration.
+- `src/data/`: event records, shared-data access, venue geometry, and browser storage.
+- `src/map/`: map styles, markers, and label layout.
+- `src/review-queue.js`, `src/event-management.js`: review and owner workflows.
+- `supabase/`: schema, feature migrations, and backend setup.
+- `tests/`: unit, database, and browser checks.
+- `scripts/build-site.js`: copies runtime assets into `site/` for hosting.
 
-Classroom pins start hidden on each page load. Use the map-key switch or classroom filter to enable them. Availability is user-reported, with no timetable integration or occupancy detection. Demo activities and room details are illustrative.
+## Deployment and limitations
 
-## Map data and dependencies
+The checked-in `vercel.json` builds the static site with `node scripts/build-site.js` and serves `site/`. Database migrations are applied separately; a frontend deployment does not update the schema.
 
-At zoom level 18 and above, individual event pins show compact name, room and IST time labels. Labels try alternate positions to avoid other labels, pins, controls and viewport edges. Crowded labels are suppressed until space is available; individual pins also expose their label on hover or keyboard focus. Screen-reader names include the same details. Label layout only changes screen positions, never saved coordinates. Map movement and resizing recalculate placement for phone and desktop layouts.
+- ATMOS navigation use is confirmed by the developer; analytics were not enabled, so no user count is claimed.
+- The Interested shortlist is browser-local, not a cross-device RSVP or attendance count.
+- Classroom availability is user-reported, not occupancy detection or timetable integration.
+- Browser-ID submission limits are best-effort controls; the approval queue does not eliminate all abuse.
+- Sample event locations and room details are illustrative. An empty live feed is possible outside scheduled activities.
+- The prior setup notes mark reporting and upcoming-schedule rollout as requiring migration work. Check the target database rather than assuming every feature is live.
 
-Campus basemap data is derived from [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) under ODbL 1.0. Boundary geometry is maintained once in `src/data/campus-boundary.js`. Original road and boundary references remain in `reference/`.
+## Attribution
 
-MapLibre GL JS and its license are bundled in `public/vendor/`; font attribution is in `public/fonts/NOTICE.txt`. Optional satellite imagery uses Esri World Imagery and requires internet access. Application code does not require a package download to run. npm dependencies are development tools only.
+Campus map data is derived from [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) under ODbL. MapLibre and other bundled dependencies retain their license notices in `public/vendor/`; font attribution is in `public/fonts/NOTICE.txt`. Optional satellite imagery uses Esri World Imagery.
 
-## Live events and interest
-
-Explore and Interested include live events and events starting within 15 minutes. Pins disappear at the end time; upcoming events say “Starts in…”. My events also includes the organizer’s upcoming posts, while map pins still follow the 15-minute window. The Upcoming events list shows approved future events in IST date/start order and lets visitors preview an event at its start time. Interest is private to this browser; no student login is required. Event boundaries refresh automatically, including when returning to the tab. Existing interest and organizer draft storage keys are retained.
-
-## Prepared shared backend
-
-Supabase shared mode is enabled after the schema was applied successfully. Organizer Auth redirects and authenticated end-to-end checks are still pending. Follow `supabase/README.md`. The publishable project credentials are in `src/config.js`; no privileged key is used. The shared feed starts empty; demo posts remain in separate browser storage.
-
-## Placing exact venue locations
-
-Organizer forms privately reuse classroom pins from that account's previously published events, including ended events. Typing variants such as `g102`, `G 102` or `G-102` selects the latest known `G102` point. Unknown or multi-room labels require a location choice; manual map points and existing event edits are preserved. The account-scoped browser cache and authenticated own-event history are separate from the public saved-venue list. No extra SQL migration is required.
-
-The ATMOS draft importer merges additional date batches by stable source ID and keeps existing draft edits and published progress. A date filter separates Day 1, Day 2 and Day 3. Booking-first files prefill their own room-booking date/time and show catalog discrepancies for review; new imports never publish events automatically.
-
-After signing in with an approved reviewer account, choose **Set venue pins**. Select each room, choose **Place on map**, zoom and click, then **Save location**. Drafts persist only in that browser and do not modify the public venue definitions or existing event pins. Download the JSON and provide it for applying reviewed coordinates to `src/data/venues.js`.
-
-The setup button is hidden for visitors. Opening, placing, and exporting also check reviewer state. There is no public API that changes the official venue catalog; official coordinates remain part of the deployed source. Auditorium, LTC Lobby, and F101–F106 now use the eight exact campus-owner locations imported on 22 October 2026. Existing event records keep their stored coordinates; new events use the confirmed defaults. Different events may share a venue and overlapping times. Nearby event markers group at low zoom and separate at high zoom, with visual offsets for identical coordinates.
-
-## Organizer password sign-in
-
-The organizer dialog supports both email/password and email links. Email is the login ID. After signing in using an email link once, approved reviewers can choose **Set / change password**. Forgot password sends a recovery link and the app opens the new-password form when Supabase emits PASSWORD_RECOVERY. Passwords are sent only to Supabase Auth and are never stored by application code in browser storage or event records. Organizer privileges continue to be enforced by the existing database approval check.
-
-UI method switching and existing unit checks have been verified. Creating a real password, signing in with it, and completing a recovery link require the account owner's testing; no account credentials were entered or changed by the assistant.
-
-## Appearance
-
-The header toggle switches between light and dark mode, including the street-map palette. The preference is stored separately as `pinpoint-theme`, applied before the page paints, and synced across open tabs. Light mode remains the default on a new browser. Satellite imagery keeps its original colors. Theme changes recolor existing map layers without replacing map data or event pins.
-
-## Owner management and private request tracking
-
-The owner editor, event archive, and private request-status UI are implemented. The user confirmed successful application of the combined owner/tracking upgrade on 22 October 2026. It provisions the two existing approved accounts as owners; the repository migrations omit personal addresses.
-
-Owners can manage events created by every reviewer, edit existing details and map points, cancel events, and restore cancelled events whose end time has not passed. Edits preserve the event ID, original creator and current status. A revision check prevents silently overwriting a more recent edit. Reviewers retain publishing, request review and own-event cancellation; existing event details can only be edited by owners. Public visibility remains live-only.
-
-New public requests receive a random private tracking capability. The token stays in the URL fragment and browser storage; the database stores its SHA-256 hash. The status function returns one matching request's title, review status, rejection reason and timestamps, without exposing client/reviewer IDs or the queue. Treat the complete private link as access to that request. Rejection reasons are required and visible to the submitter. Older requests without a token do not acquire a tracking link automatically. Recent links may be removed from this browser without deleting the database request or invalidating another copy of the link.
-
-Phone screens use a compact 30px heading and a smaller decorative mark; the redundant hero footer is hidden below 760px. Desktop layout is unchanged.
-
-Verification: unit tests cover owner filtering, revision/error mapping, tracking URL validation and status copy. UI checks use isolated sample backends and never mutate production events. SQL and PL/pgSQL syntax were also checked with the PostgreSQL parser. Read-only live checks passed for public event reads, denied anonymous request reads and owner/review mutations, invalid tracking tokens and invalid submissions. Authenticated end-to-end and multi-session concurrency checks remain pending.
-
-## Private event reporting
-
-Apply `supabase/event-reports.sql` after the existing setup and owner migrations, then reload. This reporting migration has not yet been applied to the live project. Visitors can report a live event with a reason and up to 500 characters of details, without signing in. Confirmation appears only after the server accepts the report. Reports do not automatically hide events.
-
-Only owners can open **Review reports**. The queue supports editing the event, resolving or dismissing a report, and cancelling an event while resolving its open reports in one transaction. Cancellation can be reversed in Manage all events. Optional review notes stay private. Reports retain their title snapshot if an event is deleted. Switching accounts clears the private queue from the screen.
-
-The server prevents repeat open reports for the same event/browser, limits five reports per browser per ten minutes, and caps global traffic and open reports. Browser identity can be reset, so these are best-effort abuse limits. Public table reads and direct client writes are denied.
-
-Verification: 21 unit tests and seven database scenarios passed. Database scenarios run the actual report migration and owner functions in local PostgreSQL through PGlite, covering permissions, duplicates, validation, limits, stale revisions, cancellation, restoration and history. Sample-browser checks covered visitor submission, owner-only queue visibility and cancellation with resolved history. These checks do not certify the unapplied live migration or multi-session races.
-
-## Vercel deployment from GitHub
-
-Import the GitHub repository into Vercel with the repository root as the root directory and framework preset Other. The checked-in `vercel.json` runs `node scripts/build-site.js` and serves only `site/`, which contains the runtime HTML, source modules and public assets. Dependencies are already bundled, so deployment skips package installation. SQL migrations, tests, reference images and local previews are excluded from the public site.
-
-Push changes to the connected production branch (`main`) to redeploy automatically. Database migrations still need to be applied separately in Supabase; deployments do not change the database. Add the final HTTPS Vercel address to Supabase Auth URL Configuration for organizer email links and password recovery.
-
-## Browse events at a chosen time
-
-The map opens in live mode on every page load. Its **Now** control opens a date/time chooser. A selected time uses IST, keeps the preview fixed while the real clock moves, and shows approved pins with `start <= selected time + 15 minutes` and `end > selected time`. The Happening now filter continues to restrict results to events actually underway. **Back to live now** restores the moving current-time feed. The Upcoming events list always follows the real current time.
-
-`supabase/event-time-view.sql` adds a paginated read-only function for approved events active at the chosen instant. The existing direct table policy is unchanged. Cancelled events and private requests are excluded; creator IDs are returned only to the matching signed-in user. The user confirmed application on 22 October 2026; live anonymous chosen-time reads returned 200 and invalid input was rejected.
-
-Event creation and editing now explicitly interpret inputs as IST on every device. Schedule entries can be entered before the fest and remain editable in owner management. No event dates are baked into application code. Run `npm run test:time-db` for the real SQL boundary and permission scenarios.
-
-Apply `supabase/upcoming-events.sql` for the public approved schedule and early pins. It adds a bounded, read-only `event_schedule` function with creator IDs omitted except for the matching account. It preserves all event/request/report data and all browser draft progress. Until applied, the app falls back to existing live/chosen-time reads and displays a setup message; upcoming/early visibility is incomplete. The migration is not applied automatically by a Vercel deployment.
+See [operational notes](docs/OPERATIONS.md) for venue setup, draft imports, tracking links, and recorded verification limitations.
